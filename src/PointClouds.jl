@@ -6,11 +6,17 @@ using FixedSizeArrays
 export PointCloud,
     # Point cloud data access
     positions, normals,
+    # Spatial indexing
+    knn, inrange,
     # Data handling
-    readdlm_points, split_cloud
+    readdlm_points, split_cloud,
+    # Adding columns
+    add_normals!
 
 import Base:
-    show, length, getindex, setindex!, keys, haskey, vcat
+    show, keys, haskey,
+    getindex, setindex!,
+    vcat, length, endof
 
 import NearestNeighbors:
     knn, inrange
@@ -53,6 +59,13 @@ function setindex!(cloud::PointCloud, value::Vector, attrname::Symbol)
     cloud.attributes[attrname] = value
 end
 
+
+# Access to columns with "blessed" type for efficiency.
+# TODO: Figure out how we can remove these, so that eg, cloud[:normal] is the
+# definitive way to access normals.
+# Note that the `positions()` is used rather than `position()`, to avoid a
+# clash with `Base.position()` which means IO stream position... ugh.
+
 "Return vector of point cloud positions"
 positions(cloud::PointCloud)   = cloud.positions
 
@@ -66,6 +79,7 @@ end
 # Container functionality acting on rows
 
 length(cloud::PointCloud) = length(cloud.positions)
+endof(cloud::PointCloud) = length(cloud.positions)
 
 # Subset of a point cloud
 function getindex{Dim,T,SIndex}(cloud::PointCloud{Dim,T,SIndex}, row_inds::AbstractVector)
@@ -109,15 +123,15 @@ end
 
 #--------------------------
 # Spatial index lookup (knn and ball queries)
-knn(cloud::PointCloud,     points, k) = knn(cloud.spatial_index, points, k)
-inrange(cloud::PointCloud, points, k) = inrange(cloud.spatial_index, points, k)
+knn(cloud::PointCloud, points, k) = knn(cloud.spatial_index, points, k)
+inrange(cloud::PointCloud, points, radius) = inrange(cloud.spatial_index, points, radius)
 knn{T<:Vec}(cloud::PointCloud, points::AbstractVector{T}, k) = knn(cloud, destructure(points), k)
-inrange{T<:Vec}(cloud::PointCloud, points::AbstractVector{T}, k) = inrange(cloud, destructure(points), k)
+inrange{T<:Vec}(cloud::PointCloud, points::AbstractVector{T}, radius) = inrange(cloud, destructure(points), radius)
 
 # Inefficient hack to allow use with FixedSizeArrays.Vec.
 # TODO(chris.foster): Remove these once Base allows for FixedSizeArrays.Vec <: AbstractVector
-knn(cloud::PointCloud,     point::Vec, k) = knn(cloud, [point...], k)
-inrange(cloud::PointCloud, point::Vec, k) = inrange(cloud, [point...], k)
+knn(cloud::PointCloud, point::Vec, k) = knn(cloud, [point...], k)
+inrange(cloud::PointCloud, point::Vec, radius) = inrange(cloud, [point...], radius)
 
 
 #------------------------
@@ -129,7 +143,7 @@ const text_column_info = Dict(
     :Z =>  (Float64, :position),
     :G =>  (Float32, :ground_height),
     :A =>  (Float32, :height_above_ground),
-    :r =>  (Float32, :red),
+    :r =>  (Float32, :red),   # TODO: Map color into color type or FixedSizeVector?
     :g =>  (Float32, :green),
     :b =>  (Float32, :blue),
     :T =>  (Float64, :time),

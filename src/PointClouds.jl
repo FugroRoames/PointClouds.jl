@@ -64,8 +64,20 @@ end
 
 #--------------------------
 # Container functionality acting on rows
+
 length(cloud::PointCloud) = length(cloud.positions)
 
+# Subset of a point cloud
+function getindex{Dim,T,SIndex}(cloud::PointCloud{Dim,T,SIndex}, row_inds::AbstractVector)
+    attrs = Dict{Symbol,Vector}()
+    for (k,v) in cloud.attributes
+        attrs[k] = v[row_inds]
+    end
+    pos = attrs[:position]
+    PointCloud{Dim,T,SIndex}(pos, KDTree(destructure(pos)), attrs)
+end
+
+# Concatenate point clouds
 function vcat{Dim,T,SIndex}(cloud1::PointCloud{Dim,T,SIndex}, clouds::PointCloud{Dim,T,SIndex}...)
     attrs = deepcopy(cloud1.attributes)
     ks = Set(keys(attrs))
@@ -77,8 +89,7 @@ function vcat{Dim,T,SIndex}(cloud1::PointCloud{Dim,T,SIndex}, clouds::PointCloud
         end
     end
     pos = attrs[:position]
-    out = PointCloud{Dim,T,SIndex}(pos, KDTree(destructure(pos)), attrs)
-    out
+    PointCloud{Dim,T,SIndex}(pos, KDTree(destructure(pos)), attrs)
 end
 
 """
@@ -90,13 +101,7 @@ function split_cloud(allpoints, scanid; min_points::Int=10000)
     unique_scans = unique(scanid)
     scans = Dict{eltype(unique_scans), typeof(allpoints)}()
     for id in unique_scans
-        sel = id .== scanid
-        pos = positions(allpoints)[sel]
-        cloud = PointCloud(pos)
-        for (name,val) in allpoints.attributes
-            cloud[name] = val[sel]
-        end
-        scans[id] = cloud
+        scans[id] = allpoints[id .== scanid]
     end
     scans
 end

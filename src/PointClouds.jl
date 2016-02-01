@@ -23,10 +23,25 @@ import NearestNeighbors:
 
 
 """
-A PointCloud contains information about the coordinates of the points in the
-cloud, an efficient data structure for spatial search, and various attributes
-which can be accessed by name.  The only required attribute is `position`,
-which is used during spatial lookup.
+A `PointCloud` is a container for points sharing a common set of per-point
+attributes.  Points within the cloud can be accessed by index, and vectors of
+attributes may be accessed by name.  There is one required attribute
+`position`, which is used to build a datastructure for fast spatial lookup of
+k-nearest neighbours, or points within a fixed radius.
+
+Example:
+
+```
+cloud = readdlm_points("myfile.txt")
+
+# Find low intensity points
+low_intensity_cloud = cloud[cloud[:intensity] .< 10]
+# Find vector of time stamps per point
+gps_time = low_intensity_cloud[:time]
+
+# Find points within 15 units of [1,1,1]
+nearby = cloud[inrange(cloud, [1,1,1], 15.0)]
+```
 """
 type PointCloud{Dim,T,SIndex}
     positions::Vector{Vec{Dim,T}}
@@ -34,6 +49,12 @@ type PointCloud{Dim,T,SIndex}
     attributes::Dict{Symbol,Vector}
 end
 
+"""
+    PointCloud(positions)
+
+Create a new point cloud, using a KDTree for spatial indexing based on
+`positions`.
+"""
 PointCloud(positions) = PointCloud(positions, KDTree(destructure(positions)),
                                    Dict{Symbol,Vector}(:position=>positions))
 

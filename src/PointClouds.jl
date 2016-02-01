@@ -13,7 +13,7 @@ import Base:
     show, length, getindex, setindex!, keys, haskey, vcat
 
 import NearestNeighbors:
-    knn
+    knn, inrange
 
 
 """
@@ -103,8 +103,16 @@ end
 
 
 #--------------------------
-# Spatial indexing functionality
-knn(cloud::PointCloud, point, k) = knn(cloud.spatial_index, point, k)
+# Spatial index lookup (knn and ball queries)
+knn(cloud::PointCloud,     points, k) = knn(cloud.spatial_index, points, k)
+inrange(cloud::PointCloud, points, k) = inrange(cloud.spatial_index, points, k)
+knn{T<:Vec}(cloud::PointCloud, points::AbstractVector{T}, k) = knn(cloud, destructure(points), k)
+inrange{T<:Vec}(cloud::PointCloud, points::AbstractVector{T}, k) = inrange(cloud, destructure(points), k)
+
+# Inefficient hack to allow use with FixedSizeArrays.Vec.
+# TODO(chris.foster): Remove these once Base allows for FixedSizeArrays.Vec <: AbstractVector
+knn(cloud::PointCloud,     point::Vec, k) = knn(cloud, [point...], k)
+inrange(cloud::PointCloud, point::Vec, k) = inrange(cloud, [point...], k)
 
 
 #------------------------

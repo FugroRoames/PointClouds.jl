@@ -66,7 +66,7 @@ end
 #------------------------
 # Container functionality acting on columns
 keys(cloud::PointCloud) = keys(cloud.attributes)
-haskey(cloud::PointCloud, attrname::Symbol) = (attrname == :position) || haskey(cloud.attributes, attrname)
+haskey(cloud::PointCloud, attrname::Symbol) = haskey(cloud.attributes, attrname)
 
 function getindex(cloud::PointCloud, attrname::Symbol)
     haskey(cloud, attrname) || error("Point cloud $cloud has no attribute $attrname")

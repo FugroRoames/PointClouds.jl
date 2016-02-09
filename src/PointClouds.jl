@@ -42,7 +42,7 @@ positions = [Vec(i,-i,1.0) for i = 1:10]
 cloud = PointCloud(positions)
 
 # Create new intensity attributes
-cloud[:intensity] = collect(1:8)
+cloud[:intensity] = collect(1:10)
 
 # Create capture time for each point sample
 cloud[:time] = [time() for i = 1:10]

@@ -35,20 +35,20 @@ Example:
 using FixedSizeArrays
 using PointClouds
 
-# Create positions of Vec coordinates
+# Create positions of 3D Vec coordinates
 positions = [Vec(i,-i,1.0) for i = 1:10]
 
 # Create a PointCloud from positions
 cloud = PointCloud(positions)
 
 # Create new intensity attributes
-cloud[:intensity] = rand(10)*20
+cloud[:intensity] = collect(1:8)
 
 # Create capture time for each point sample
 cloud[:time] = [time() for i = 1:10]
 
 # Find low intensity points
-low_intensity_cloud = cloud[cloud[:intensity] .< 10]
+low_intensity_cloud = cloud[cloud[:intensity] .< 5]
 
 # Find vector of time stamps per point
 gps_time = low_intensity_cloud[:time]

@@ -9,7 +9,7 @@ export PointCloud,
     # Spatial indexing
     knn, inrange,
     # Data handling
-    readdlm_points, split_cloud,
+    split_cloud,
     # Adding columns
     add_normals!
 
@@ -32,15 +32,29 @@ k-nearest neighbours, or points within a fixed radius.
 Example:
 
 ```
-cloud = readdlm_points("myfile.txt")
+using FixedSizeArrays
+using PointClouds
+
+# Create positions of Vec coordinates
+positions = [Vec(i,-i,1.0) for i = 1:10]
+
+# Create a PointCloud from positions
+cloud = PointCloud(positions)
+
+# Create new intensity attributes
+cloud[:intensity] = rand(10)*20
+
+# Create capture time for each point sample
+cloud[:time] = [time() for i = 1:10]
 
 # Find low intensity points
 low_intensity_cloud = cloud[cloud[:intensity] .< 10]
+
 # Find vector of time stamps per point
 gps_time = low_intensity_cloud[:time]
 
-# Find points within 15 units of [1,1,1]
-nearby = cloud[inrange(cloud, [1,1,1], 15.0)]
+# Find points within 5 units of [1,1,1]
+nearby = cloud[inrange(cloud, [1,1,1], 5.0)]
 ```
 """
 type PointCloud{Dim,T,SIndex}
@@ -153,65 +167,6 @@ inrange{T<:Vec}(cloud::PointCloud, points::AbstractVector{T}, radius) = inrange(
 # TODO(chris.foster): Remove these once Base allows for FixedSizeArrays.Vec <: AbstractVector
 knn(cloud::PointCloud, point::Vec, k) = knn(cloud, [point...], k)
 inrange(cloud::PointCloud, point::Vec, radius) = inrange(cloud, [point...], radius)
-
-
-#------------------------
-# File IO
-# Column names and formats for Roames point cloud text format :(
-const text_column_info = Dict(
-    :X =>  (Float64, :position),  # TODO: Systematically aggregate position into a vector.
-    :Y =>  (Float64, :position),
-    :Z =>  (Float64, :position),
-    :G =>  (Float32, :ground_height),
-    :A =>  (Float32, :height_above_ground),
-    :r =>  (Float32, :red),   # TODO: Map color into color type or FixedSizeVector?
-    :g =>  (Float32, :green),
-    :b =>  (Float32, :blue),
-    :T =>  (Float64, :time),
-    :R =>  (Int8,    :return_number),
-    :P =>  (Int8,    :number_of_returns),
-    :C =>  (UInt8,   :classification),
-    :I =>  (UInt16,  :intensity),
-    :L =>  (UInt16,  :point_source_id),
-    :S =>  (Int64,   :flight_strip_id),
-    :U =>  (Int,     :cluster),
-    :Nx => (Float32, :normal_x), # TODO: Aggregate any normal info into a vector
-    :Ny => (Float32, :normal_y),
-    :Nz => (Float32, :normal_z),
-)
-
-
-"""
-    readdlm_points(source)
-
-Read a set of points from the given text `source` (an IO stream or filename),
-interpreting the text column headers according to the column names defined in
-the Roames ExtractPoints executable, and mapping to more sensible
-multi-character names for the columns.  (See the text_column_info dictionary
-for mapping details.)
-"""
-function readdlm_points(source::IO)
-    data, column_names = readdlm(source, header=true)
-
-    npoints = size(data,1)
-    xyz_names = ["X", "Y", "Z"]
-    xyz_cols = Int[findfirst(column_names, n) for n in xyz_names]
-    positions = Vector{Vec{3,Float64}}(npoints)
-    @fslice positions[:,:] = data[:, xyz_cols]'
-    cloud = PointCloud(positions)
-
-    for (cindex, cname) in enumerate(column_names)
-        if cname in xyz_names
-            continue
-        end
-        cname = Symbol(cname)
-        ctype,fullname = text_column_info[cname]
-        cloud[fullname] = map(ctype, data[:,cindex])
-    end
-    cloud
-end
-
-readdlm_points(filename::AbstractString) = open(io->readdlm_points(io), filename, "r")
 
 
 #------------------------

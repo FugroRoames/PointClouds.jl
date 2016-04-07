@@ -11,7 +11,10 @@ export PointCloud,
     # Data handling
     split_cloud,
     # Adding columns
-    add_normals!
+    add_normals!,
+    # rasterier
+    rasterize_points
+
 
 import Base:
     show, keys, haskey,
@@ -215,5 +218,48 @@ function add_normals!{Dim}(cloud::PointCloud{Dim}; kwargs...)
     cloud
 end
 
+
+"""
+` Rasterize a points cloud in 2D`
+
+### Inputs:
+* `points::Matrix`: D x N matrix of points
+* `dx::AbstractFloat`: cell size
+
+### Outputs:
+* `Dict`: a dictionary that contains the indices of all the points that are in a cell
+"""
+function rasterize_points(points, dx::AbstractFloat)
+	dim, num_points = size(points)
+	points = points .- minimum(points, 2)
+	nx = 1 + floor(Int, maximum(points[1, :])/dx)
+	ny = 1 + floor(Int, maximum(points[2, :])/dx)
+	# create empty dictionary
+    # TODO: this is not very efficient since there can be a lot of empty cells
+    pixels = Dict()
+	for i = 1:nx*ny
+		pixels[i] = Vector{Int64}(0)
+	end
+	# fill the dictionary
+	for i=1:num_points
+		push!(pixels[ (floor(Int, points[1, i]/dx) + 1 + max(floor(Int, points[2, i]/dx), 1)*nx) ], i)
+	end
+	return pixels
+end
+
+
+"""
+` Rasterize a points cloud in 2D`
+
+### Inputs:
+* `cloud::PointCloud`: A point cloud
+* `dx::AbstractFloat`: cell size
+
+### Outputs:
+* `Dict`: a dictionary that contains the indices of all the points that are in a cell
+"""
+function rasterize_points(cloud::PointCloud, dx::AbstractFloat)
+    return rasterize_points(destructure(cloud.positions), dx)
+end
 
 end # module

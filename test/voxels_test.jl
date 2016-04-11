@@ -1,13 +1,13 @@
 @testset "Voxels" begin
     # Create 3x3 grid
-    x_space = collect(linspace(0.0,3.0,3))
+    x_space = collect(linspace(0.0,3.0,4))
     y_space = x_space
     z_space = x_space
     x = [i for i in y_space, j in x_space, z in z_space]
     y = [j for i in y_space, j in x_space, z in z_space]
     z = [z for i in y_space, j in y_space, z in z_space]
     points = (hcat([[x[i], y[i], z[i]] for i = 1:length(x)]...))
-    voxels = make_voxels(points, 1.0)
+    voxels = Voxels(points, 1.0)
 
     # Check that each point is in one voxel
     for i = 1:length(voxels)
@@ -25,8 +25,9 @@
     p = [0.99 0.0 10.0^5
          0.0  0.99 10.0^5
          0.0  0.0 0.0]
+
     points = [points p]
-    voxels = make_voxels(points, 1.0)
+    voxels = Voxels(points, 1.0)
     @test voxels[1].point_inds == [1,5,6]
     @test voxels[2].point_inds == [2]
     @test voxels[3].point_inds == [3]
@@ -40,7 +41,7 @@
 
     # Test using point clouds
     cloud = PointCloud([Vec(i+1.0, i-1.0, i) for i = 1:10])
-    voxels = make_voxels(cloud, 1.0)
+    voxels = Voxels(cloud, 1.0)
     for i = 1:length(voxels)
         @test length(voxels[i].point_inds) == 1
         @test voxels[i].point_inds[1] == i

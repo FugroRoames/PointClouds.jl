@@ -5,7 +5,7 @@ type Voxel{T,N}
     n_voxels::Vector{Float64}     # TODO This may not be that useful?
     offset::Vector{T}             # TODO Should this be centre?
     ind_range::Dict{NTuple{N, T}, UnitRange{Int64}}  # Point position range for voxel index
-    ind_lookup::Dict{Int64,Int64}  # Dictionary lookup
+    ind_lookup::Dict  # Dictionary lookup
 end
 
 function Voxels{T <: AbstractFloat}(points::Matrix{T},
@@ -17,12 +17,12 @@ function Voxels{T <: AbstractFloat}(points::Matrix{T},
 
     # Count number voxels in each dimension
     n_voxels = Array(Float64, ndims)
-    for i = 1:ndims
+    @inbounds for i = 1:ndims
         n_voxels[i] = ceil(maximum(points[i, :]) / voxel_size)
     end
 
     # Get indices for voxels
-    indices = get_indices(points, voxel_size)
+    indices = get_indices(points, voxel_size) # optimies
 
     # Sort point indices to get easy range look up for each voxel
     permutation = sortperm(indices)
@@ -34,7 +34,7 @@ function Voxels{T <: AbstractFloat}(points::Matrix{T},
 
     # Look up to map the UnitRange to original point indices
     ind_lookup = Dict{Int64,Int64}()
-    for i in eachindex(permutation)
+    @inbounds for i in eachindex(permutation)
         ind_lookup[i] = permutation[i]
     end
 
@@ -48,34 +48,29 @@ function Voxels{T <: AbstractFloat}(points::Matrix{T},
     return Voxel(centres, unique_ind, voxel_size, n_voxels, collect(centred_points), indices_range, ind_lookup)
 end
 
+# Voxelize point cloud
+Voxels(cloud::PointCloud, voxel_size) = Voxels(destructure(cloud.positions), voxel_size)
+
+# Calculate centre point of voxels
 function get_centres(indices, voxel_size)
     ndims = length(indices[1])
     nvoxels = length(indices)
     # indices position (middle point of indices)
-    pos = Array(eltype(eltype(indices)), ndims, nvoxels)
-    for i in 1:nvoxels
-        pos[:,i] = collect(indices[i])*voxel_size - voxel_size*0.5
+    centres = Array(eltype(eltype(indices)), ndims, nvoxels)
+    @inbounds for i in 1:nvoxels
+        centres[:,i] = collect(indices[i])*voxel_size - voxel_size*0.5
     end
-    return pos
+    return centres
 end
 
-function get_centre{N, T}(voxels::Voxel, voxel_index::NTuple{N,T}; offset::Bool = false)
-    position = collect(voxel_index)*voxels.voxel_size - voxels.voxel_size*0.5
-    position = offset ? position : position .+ voxels.offset
-end
-
-"""
-Calculates voxel indices from points
-
-points 3xN array
-number of voxels in each dimension N vector
-voxel_size
-"""
+# Calculates voxel indices
 function get_indices{T <: AbstractFloat}(points::Matrix{T}, voxel_size)
     ndims, npoints = size(points)
+    tmp = zeros(Float64, ndims)
     indices = Array(NTuple{ndims,T}, npoints)
-    for i in 1:npoints
-        indices[i] = tuple(floor(points[:,i]./voxel_size) + 1.0 ...)
+    @inbounds for i in 1:npoints
+        @devec tmp[:] = floor(points[:,i]./voxel_size) .+ 1.0
+        indices[i] = tuple(tmp...)
     end
     return indices
 end
@@ -83,14 +78,18 @@ end
 # Get the point range for each of the same voxel indices
 # Assign the point ranges to voxel indices
 function get_indices_range(unique_ind, sorted_ind)
-    # zero crossing (i.e. when the indices change)
-    zc = sum(abs(diff(hcat([collect(sorted_ind[i]) for i=1:length(sorted_ind)]...),2)),1)
+    # Determine when voxel indices change (using a similar method to zero crossings)
+    tmp_arr = Array(Float64, 3, length(sorted_ind))
+    @inbounds for i = 1:length(sorted_ind)
+        tmp_arr[:, i] = collect(sorted_ind[i])
+    end
+    zc = sum(abs(diff(tmp_arr, 2)), 1)
     zc_ind = find(zc .!= 0.0)
-    push!(zc_ind, length(sorted_ind))  # Add last point
+    push!(zc_ind, length(sorted_ind))  # Finish at last point
 
     start_ind = 1
     indices_range = Dict{eltype(unique_ind), UnitRange{Int64}}()
-    for (i, ind) in enumerate(zc_ind)
+    @inbounds for (i, ind) in enumerate(zc_ind)
         indices_range[unique_ind[i]] = start_ind:ind
         start_ind = ind + 1
     end
@@ -110,17 +109,11 @@ end
 # Return point indices for a voxel index
 function invoxel{N, T}(voxels::Voxel, voxel_index::NTuple{N,T})
     range = get(voxels.ind_range, voxel_index, 0:0)
-    if range != 0:0
-        indices = Int64[voxels.ind_lookup[j] for j in range]
-    else
-        indices = Int64[]
-    end
-    return indices
+    indices = range != 0:0 ? indices = Int64[voxels.ind_lookup[j] for j in range] : Int64[]
 end
 
 # Return point indices for all voxels
 invoxel(voxels::Voxel) = invoxel(voxels, voxels.indices)
-
 
 # Return voxel index given a position
 function invoxel{T <: AbstractFloat}(voxels::Voxel, point::Vector{T})
@@ -128,8 +121,6 @@ function invoxel{T <: AbstractFloat}(voxels::Voxel, point::Vector{T})
     return tuple(floor(point./voxels.voxel_size) + 1.0 ...)
 end
 
-# Voxelize point cloud
-Voxels(cloud::PointCloud, voxel_size) = Voxels(destructure(cloud.positions), voxel_size)
 
 function Base.show(io::IO, voxels::Voxel)
     println(io, typeof(voxels))

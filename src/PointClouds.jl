@@ -1,4 +1,24 @@
 module PointClouds
+using NearestNeighbors
+using FixedSizeArrays
+using Devectorize
+
+export PointCloud,
+    # Point cloud data access
+    positions, normals,
+    # Spatial indexing
+    knn, inrange,
+    # Data handling
+    split_cloud,
+    # Adding columns
+    add_normals!,
+    # rasterier
+    rasterize_points
+
+    # Create voxels from points
+    Voxel,
+    Voxels,
+    invoxel
 
 import Base:
     show, keys, haskey,
@@ -14,19 +34,5 @@ using FixedSizeArrays
 include("cloud.jl")
 include("spatial_grid.jl")
 
-export
-    PointCloud,
-    # Point cloud data access
-    positions,
-    normals,
-    # Spatial indexing
-    knn,
-    inrange,
-    # Data handling
-    split_cloud,
-    # Adding columns
-    add_normals!,
-    # rasterier
-    rasterize_points
 
 end # module

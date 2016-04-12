@@ -28,11 +28,7 @@ import Base:
 import NearestNeighbors:
     knn, inrange
 
-using NearestNeighbors
-using FixedSizeArrays
-
-include("cloud.jl")
+include("clouds.jl")
 include("spatial_grid.jl")
-
 
 end # module

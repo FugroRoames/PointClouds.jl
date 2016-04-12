@@ -10,4 +10,4 @@ end
 
 include("cloud_test.jl")
 include("test_pointclouds.jl")
-include("voxels_test.jl")
+include("test_spatial_grid.jl")

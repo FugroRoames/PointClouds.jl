@@ -1,5 +1,5 @@
-module PointClouds
 
+module PointClouds
 using NearestNeighbors
 using FixedSizeArrays
 
@@ -231,15 +231,16 @@ end
 """
 function rasterize_points(points, dx::AbstractFloat)
     _, num_points = size(points)
-    points = points .- minimum(points, 2)
+    points = points .- minimum(points, 2) .- 1e-9*ones(3)
     nx = ceil(Int, maximum(points[1, :])/dx)
     pixels = Dict{Int, Vector{Int}}()
     for i = 1:num_points
-        key = (ceil(Int, points[1, i]/dx) + 1 + max(ceil(Int, points[2, i]/dx), 1)*nx)
+        key = (ceil(Int, points[1, i]/dx) + floor(Int, points[2, i]/dx) *nx)
         if haskey(pixels, key)
             push!(pixels[key], i)
         else
             pixels[key] = Vector{Int}()
+            push!(pixels[key], i)
         end
     end
     return pixels

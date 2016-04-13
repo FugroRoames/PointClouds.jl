@@ -230,21 +230,19 @@ end
 * `Dict`: a dictionary that contains the indices of all the points that are in a cell
 """
 function rasterize_points(points, dx::AbstractFloat)
-	dim, num_points = size(points)
-	points = points .- minimum(points, 2)
-	nx = 1 + floor(Int, maximum(points[1, :])/dx)
-	ny = 1 + floor(Int, maximum(points[2, :])/dx)
-	# create empty dictionary
-    # TODO: this is not very efficient since there can be a lot of empty cells
-    pixels = Dict()
-	for i = 1:nx*ny
-		pixels[i] = Vector{Int64}(0)
-	end
-	# fill the dictionary
-	for i=1:num_points
-		push!(pixels[ (floor(Int, points[1, i]/dx) + 1 + max(floor(Int, points[2, i]/dx), 1)*nx) ], i)
-	end
-	return pixels
+    _, num_points = size(points)
+    points = points .- minimum(points, 2)
+    nx = ceil(Int, maximum(points[1, :])/dx)
+    pixels = Dict{Int, Vector{Int}}()
+    for i = 1:num_points
+        key = (ceil(Int, points[1, i]/dx) + 1 + max(ceil(Int, points[2, i]/dx), 1)*nx)
+        if haskey(pixels, key)
+            push!(pixels[key], i)
+        else
+            pixels[key] = Vector{Int}()
+        end
+    end
+    return pixels
 end
 
 

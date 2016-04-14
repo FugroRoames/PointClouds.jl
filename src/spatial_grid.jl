@@ -50,9 +50,9 @@ type Voxel{T,N}
     ind_lookup::Dict  # Dictionary lookup
 end
 
-function Voxels{T <: AbstractFloat}(points::Matrix{T},
-                                    voxel_size::Real;
-                                    offset::Bool = false)
+function Voxel{T <: AbstractFloat}(points::Matrix{T},
+                                   voxel_size::Real;
+                                   offset::Bool = false)
     ndims, npoints = size(points)
     centred_points = minimum(points, 2)
     points = points .- centred_points
@@ -91,7 +91,10 @@ function Voxels{T <: AbstractFloat}(points::Matrix{T},
 end
 
 # Voxelize point cloud
-Voxels(cloud::PointCloud, voxel_size) = Voxels(destructure(cloud.positions), voxel_size)
+Voxel(cloud::PointCloud, voxel_size) = Voxel(destructure(cloud.positions), voxel_size)
+
+Base.length(v::Voxel) = length(v.indices)
+Base.ndims(v::Voxel) = size(v.centres,1)
 
 # Calculate centre point of voxels
 function get_centres(indices, voxel_size)

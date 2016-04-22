@@ -44,15 +44,20 @@ type Voxel{T,N}
     centres::Matrix{T}            # Centre points of voxels
     indices::Vector{NTuple{N,T}}  # Voxel indices
     voxel_size::Real              # Size of each voxel
-    n_voxels::Vector{Float64}     # TODO This may not be that useful?
-    offset::Vector{T}             # TODO Should this be centre?
+    n_voxels::Vector{Float64}     # Number of voxels in each dimension
+    offset::Vector{T}             # Offset of lowest dimension point
     ind_range::Dict{NTuple{N, T}, UnitRange{Int64}}  # Point position range for voxel index
-    ind_lookup::Dict  # Dictionary lookup
+    ind_lookup::Dict              # Dictionary lookup
 end
 
-function Voxel{T <: AbstractFloat}(points::Matrix{T},
-                                   voxel_size::Real;
-                                   offset::Bool = false)
+"""
+    Voxelize(points, voxel_size::Real [; offset = false]) -> voxels
+
+Create a `Voxel` data structure for the `points` using the `voxel_size`.
+"""
+function Voxelize{T <: AbstractFloat}(points::Matrix{T},
+                                      voxel_size::Real;
+                                      offset::Bool = false)
     ndims, npoints = size(points)
     centred_points = minimum(points, 2)
     points = points .- centred_points
@@ -91,7 +96,7 @@ function Voxel{T <: AbstractFloat}(points::Matrix{T},
 end
 
 # Voxelize point cloud
-Voxel(cloud::PointCloud, voxel_size) = Voxel(destructure(cloud.positions), voxel_size)
+Voxelize(cloud::PointCloud, voxel_size) = Voxelize(destructure(cloud.positions), voxel_size)
 
 Base.length(v::Voxel) = length(v.indices)
 Base.ndims(v::Voxel) = size(v.centres,1)
@@ -172,4 +177,48 @@ function Base.show(io::IO, voxels::Voxel)
     println(io, "  Number of voxels in each dimension: ", voxels.n_voxels)
     println(io, "  Size of voxels: ", voxels.voxel_size)
     print(io, "  Offset: ", voxels.offset)
+end
+
+# -----------------------------------------------------------------------------
+
+"""
+` Rasterize a points cloud in 2D`
+
+### Inputs:
+* `points::Matrix`: D x N matrix of points
+* `dx::AbstractFloat`: cell size
+
+### Outputs:
+* `Dict`: a dictionary that contains the indices of all the points that are in a cell
+"""
+function rasterize_points(points, dx::AbstractFloat)
+    _, num_points = size(points)
+    points = points .- minimum(points, 2) .- 1e-9*ones(3)
+    nx = ceil(Int, maximum(points[1, :])/dx)
+    pixels = Dict{Int, Vector{Int}}()
+    for i = 1:num_points
+        key = (ceil(Int, points[1, i]/dx) + floor(Int, points[2, i]/dx) *nx)
+        if haskey(pixels, key)
+            push!(pixels[key], i)
+        else
+            pixels[key] = Vector{Int}()
+            push!(pixels[key], i)
+        end
+    end
+    return pixels
+end
+
+
+"""
+` Rasterize a points cloud in 2D`
+
+### Inputs:
+* `cloud::PointCloud`: A point cloud
+* `dx::AbstractFloat`: cell size
+
+### Outputs:
+* `Dict`: a dictionary that contains the indices of all the points that are in a cell
+"""
+function rasterize_points(cloud::PointCloud, dx::AbstractFloat)
+    return rasterize_points(destructure(cloud.positions), dx)
 end

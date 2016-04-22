@@ -1,5 +1,5 @@
 @testset "Voxels" begin
-    @testset "3x3 Voxel Set" begin
+    @testset "3x3 Voxelize Set" begin
         # Create 3x3 grid
         x_space = collect(linspace(0.0,3.0,4))
         y_space = x_space
@@ -9,7 +9,7 @@
         z = [z for i in y_space, j in y_space, z in z_space]
         points = (hcat([[x[i], y[i], z[i]] for i = 1:length(x)]...))
         voxel_size = 2.0
-        voxels = Voxel(points, voxel_size)
+        voxels = Voxelize(points, voxel_size)
         inds = invoxel(voxels)
         @test voxels.voxel_size == voxel_size
         @test voxels.offset == zeros(3)
@@ -29,7 +29,7 @@
              0.0  0.0 0.0]
 
         points = [points p]
-        voxels = Voxel(points, 1.0)
+        voxels = Voxelize(points, 1.0)
         @test invoxel(voxels, (1,1,1)) == [1,5,6]
         @test invoxel(voxels, (2,1,1)) == [2]
         @test invoxel(voxels, (1,2,1)) == [3]
@@ -43,7 +43,7 @@
 
     @testset "Voxelise cloud" begin
         cloud = PointCloud([Vec(mod(i+1.0,2), i-1.0, i) for i = 1:10])
-        voxels = Voxel(cloud, 2.0)
+        voxels = Voxelize(cloud, 2.0)
         inds = invoxel(voxels)
         @test inds[1] == [1,2]
         @test inds[2] == [3,4]

@@ -8,7 +8,7 @@
 ### Outputs:
 * `Dict`: a dictionary that contains the indices of all the points that are in a cell
 """
-function rasterize_points(points, dx::AbstractFloat)
+function rasterize_points{T <: AbstractFloat}(points::Matrix{T}, dx::T)
     _, num_points = size(points)
     points = points .- minimum(points, 2) .- 1e-9*ones(3)
     nx = ceil(Int, maximum(points[1, :])/dx)

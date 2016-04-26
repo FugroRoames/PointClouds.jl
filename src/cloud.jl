@@ -5,9 +5,16 @@ attributes may be accessed by name.  There is one required attribute
 `position`, which is used to build a datastructure for fast spatial lookup of
 k-nearest neighbours, or points within a fixed radius.
 
-Example:
+### Constructors
 
+```julia
+PointCloud(positions::Vector{FixedSizeArrays.Vec{3, AbstractFloat}})
+PointCloud(positions::Matrix{AbstractFloat})
 ```
+
+### Example
+
+```julia
 using FixedSizeArrays
 using PointClouds
 
@@ -39,19 +46,28 @@ type PointCloud{Dim,T,SIndex}
     attributes::Dict{Symbol,Vector}
 end
 
-"""
-    PointCloud(positions)
+# Create a `PointCloud` for FixedSizeArrays Vec using a KDTree for spatial
+# indexing based on `positions`.
+function PointCloud{T <: AbstractFloat}(positions::Vector{FixedSizeArrays.Vec{3, T}})
+    PointCloud(positions, KDTree(destructure(positions)), Dict{Symbol,Vector}(:position=>positions))
+end
 
-Create a new point cloud, using a KDTree for spatial indexing based on
-`positions`.
+# Create a `PointCloud` from an 3xN array of points, using a KDTree for spatial
+# indexing based on `positions`.
+PointCloud{T <: AbstractFloat}(points::Matrix{T}) = PointCloud(convert_positions(points))
+
 """
-PointCloud(positions) = PointCloud(positions, KDTree(destructure(positions)),
-                                   Dict{Symbol,Vector}(:position=>positions))
+    convert_positions{T <: Real}(points::Matrix{T}) -> positions::Vector{FixedSizeArrays.Vec{3, Float64}}
+
+Convert a standard julia array of points into a FixedSizeArray
+"""
+function convert_positions{T <: AbstractFloat}(points::Matrix{T})
+   return Vec{3, T}[Vec(points[:, i]) for i = 1:size(points, 2)]
+end
 
 function show(io::IO, cloud::PointCloud)
     print(io, "PointCloud(N=$(length(cloud)), attributes=$(keys(cloud.attributes)))")
 end
-
 
 #------------------------
 # Container functionality acting on columns

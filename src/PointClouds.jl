@@ -1,7 +1,18 @@
 module PointClouds
 
+import Base:
+    show, keys, haskey,
+    getindex, setindex!,
+    vcat, length, endof
+
+import NearestNeighbors:
+    knn, inrange
+
 using NearestNeighbors
 using FixedSizeArrays
+
+include("cloud.jl")
+include("spatial_grid.jl")
 
 export
     PointCloud,
@@ -17,13 +28,5 @@ export
     add_normals!,
     # rasterier
     rasterize_points
-
-import Base:
-    show, keys, haskey,
-    getindex, setindex!,
-    vcat, length, endof
-
-import NearestNeighbors:
-    knn, inrange
 
 end # module

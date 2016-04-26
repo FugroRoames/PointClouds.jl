@@ -40,18 +40,34 @@ type PointCloud{Dim,T,SIndex}
 end
 
 """
-    PointCloud(positions)
+    PointCloud(positions::Vector{FixedSizeArrays.Vec{3, Float64}})
 
-Create a new point cloud, using a KDTree for spatial indexing based on
-`positions`.
+Create a `PointCloud` using a KDTree for spatial indexing based on `positions`.
 """
-PointCloud(positions) = PointCloud(positions, KDTree(destructure(positions)),
-                                   Dict{Symbol,Vector}(:position=>positions))
+function PointCloud{T <: AbstractFloat}(positions::Vector{FixedSizeArrays.Vec{3, T}})
+    PointCloud(positions, KDTree(destructure(positions)), Dict{Symbol,Vector}(:position=>positions))
+end
+
+"""
+   PointCloud(points::Matrix{Float64})
+
+Create a `PointCloud` from an 3xN array of points, using a KDTree for spatial
+indexing based on `positions`.
+"""
+PointCloud{T <: AbstractFloat}(points::Matrix{T}) = PointCloud(convert_positions(points))
+
+"""
+    convert_positions{T <: Real}(points::Matrix{T}) -> positions::Vector{FixedSizeArrays.Vec{3, Float64}}
+
+Convert a standard julia array of points into a FixedSizeArray
+"""
+function convert_positions{T <: AbstractFloat}(points::Matrix{T})
+   return Vec{3, T}[Vec(points[:, i]) for i = 1:size(points, 2)]
+end
 
 function show(io::IO, cloud::PointCloud)
     print(io, "PointCloud(N=$(length(cloud)), attributes=$(keys(cloud.attributes)))")
 end
-
 
 #------------------------
 # Container functionality acting on columns

@@ -51,11 +51,11 @@ type Voxel{T,N}
 end
 
 """
-    Voxelize(points, voxel_size::Real [; offset = false]) -> voxels
+    voxelize(points, voxel_size::Real [; offset = false]) -> voxels
 
 Create a `Voxel` data structure for the `points` using the `voxel_size`.
 """
-function Voxelize{T <: AbstractFloat}(points::Matrix{T},
+function voxelize{T <: AbstractFloat}(points::Matrix{T},
                                       voxel_size::Real;
                                       offset::Bool = false)
     ndims, npoints = size(points)
@@ -95,8 +95,8 @@ function Voxelize{T <: AbstractFloat}(points::Matrix{T},
     return Voxel(centres, unique_ind, voxel_size, n_voxels, collect(centred_points), indices_range, ind_lookup)
 end
 
-# Voxelize point cloud
-Voxelize(cloud::PointCloud, voxel_size) = Voxelize(destructure(cloud.positions), voxel_size)
+# voxelize point cloud
+voxelize(cloud::PointCloud, voxel_size) = voxelize(destructure(cloud.positions), voxel_size)
 
 Base.length(v::Voxel) = length(v.indices)
 Base.ndims(v::Voxel) = size(v.centres,1)

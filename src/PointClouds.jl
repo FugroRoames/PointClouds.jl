@@ -1,5 +1,13 @@
 module PointClouds
 
+import Base:
+    show, keys, haskey,
+    getindex, setindex!,
+    vcat, length, endof
+
+import NearestNeighbors:
+    knn, inrange
+
 using NearestNeighbors
 using FixedSizeArrays
 using Devectorize
@@ -19,16 +27,8 @@ export PointCloud,
     rasterize_points,
     # Create voxels
     Voxel,
-    Voxelize,
+    voxelize,
     invoxel
-
-import Base:
-    show, keys, haskey,
-    getindex, setindex!,
-    vcat, length, endof
-
-import NearestNeighbors:
-    knn, inrange
 
 include("cloud.jl")
 include("spatial_grid.jl")

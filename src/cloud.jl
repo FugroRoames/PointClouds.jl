@@ -5,9 +5,16 @@ attributes may be accessed by name.  There is one required attribute
 `position`, which is used to build a datastructure for fast spatial lookup of
 k-nearest neighbours, or points within a fixed radius.
 
-Example:
+### Constructors
 
+```julia
+PointCloud(positions::Vector{FixedSizeArrays.Vec{3, AbstractFloat}})
+PointCloud(positions::Matrix{AbstractFloat})
 ```
+
+### Example
+
+```julia
 using FixedSizeArrays
 using PointClouds
 
@@ -39,21 +46,14 @@ type PointCloud{Dim,T,SIndex}
     attributes::Dict{Symbol,Vector}
 end
 
-"""
-    PointCloud(positions::Vector{FixedSizeArrays.Vec{3, Float64}})
-
-Create a `PointCloud` using a KDTree for spatial indexing based on `positions`.
-"""
+# Create a `PointCloud` for FixedSizeArrays Vec using a KDTree for spatial
+# indexing based on `positions`.
 function PointCloud{T <: AbstractFloat}(positions::Vector{FixedSizeArrays.Vec{3, T}})
     PointCloud(positions, KDTree(destructure(positions)), Dict{Symbol,Vector}(:position=>positions))
 end
 
-"""
-   PointCloud(points::Matrix{Float64})
-
-Create a `PointCloud` from an 3xN array of points, using a KDTree for spatial
-indexing based on `positions`.
-"""
+# Create a `PointCloud` from an 3xN array of points, using a KDTree for spatial
+# indexing based on `positions`.
 PointCloud{T <: AbstractFloat}(points::Matrix{T}) = PointCloud(convert_positions(points))
 
 """

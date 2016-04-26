@@ -11,12 +11,6 @@ position = [0.0  1.0  1.0  1.0  1.0  0.0  0.0  0.0
 cloud = PointCloud(position)
 cloud[:intensity] = collect(1:8)
 
-@testset "Constructors" begin
-    position_vec = V3d[V3d(position[:,i]) for i = 1:size(position,2)]
-    cloud_vec = PointCloud(position_vec)
-    @test cloud.positions == cloud_vec.positions
-end
-
 @testset "Column access" begin
     @test haskey(cloud, :position)
     @test haskey(cloud, :intensity)

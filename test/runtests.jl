@@ -9,5 +9,5 @@ else
 end
 
 include("cloud_test.jl")
-include("test_pointclouds.jl")
+# include("test_pointclouds.jl")
 include("test_spatial_grid.jl")

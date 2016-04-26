@@ -30,7 +30,7 @@ import Base:
 import NearestNeighbors:
     knn, inrange
 
-include("clouds.jl")
+include("cloud.jl")
 include("spatial_grid.jl")
 
 end # module

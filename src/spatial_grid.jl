@@ -54,6 +54,9 @@ end
     voxelize(points, voxel_size::Real [; offset = false]) -> voxels
 
 Create a `Voxel` data structure for the `points` using the `voxel_size`.
+
+The `points` can either be a `PointCloud` or a `Matrix{AbstractFloat}`.
+If `offset = true` the `centres` are offsetted by the minimum point position.
 """
 function voxelize{T <: AbstractFloat}(points::Matrix{T},
                                       voxel_size::Real;
@@ -95,7 +98,7 @@ function voxelize{T <: AbstractFloat}(points::Matrix{T},
     return Voxel(centres, unique_ind, voxel_size, n_voxels, collect(centred_points), indices_range, ind_lookup)
 end
 
-# voxelize point cloud
+# Voxelize point cloud
 voxelize(cloud::PointCloud, voxel_size) = voxelize(destructure(cloud.positions), voxel_size)
 
 Base.length(v::Voxel) = length(v.indices)
@@ -113,7 +116,7 @@ function get_centres(indices, voxel_size)
     return centres
 end
 
-# Calculates voxel indices
+# Calculate voxel indices
 function get_indices{T <: AbstractFloat}(points::Matrix{T}, voxel_size)
     ndims, npoints = size(points)
     tmp = zeros(Float64, ndims)
@@ -146,7 +149,45 @@ function get_indices_range(unique_ind, sorted_ind)
     return indices_range
 end
 
-# Return point indices for given query voxel indices
+"""
+    get_voxel_index(voxels::Voxel, point::Vector) -> voxel_index
+
+Return a voxel `index` given a `point`.
+"""
+function get_voxel_index{T <: AbstractFloat}(voxels::Voxel, point::Vector{T})
+    point = point .- voxels.offset # Centre into voxelized frame
+    return tuple(floor(point./voxels.voxel_size) + 1.0 ...)
+end
+
+"""
+Find points in a voxel dataset specified by the voxel `indices`.
+
+If no voxel indices are given, then all voxel points are returned. Voxel indices
+can either be a `Tuple` or `Vector{Tuple}`.
+
+### Constructors
+    invoxel(voxels::Voxel)
+    invoxel(voxels::Voxel, index::Tuple)
+    invoxel(voxels::Voxel, indices::Vector{Tuple})
+
+### Example
+
+```julia
+voxels = voxelize(rand(3,100)*2.0, 1.0)
+indices = invoxel(voxels)                      # All voxels
+indices = invoxel(voxels, (1,1,1))             # Voxel index (1,1,1)
+indices = invoxel(voxels, [(1,1,1), (1,2,1)])  # Voxel index (1,1,1) and (1,2,1)
+```
+"""
+invoxel(voxels::Voxel) = invoxel(voxels, voxels.indices)
+
+# Get point indices for a voxel index
+function invoxel{N, T}(voxels::Voxel, voxel_index::NTuple{N,T})
+    range = get(voxels.ind_range, voxel_index, 0:0)
+    indices = range != 0:0 ? indices = Int64[voxels.ind_lookup[j] for j in range] : Int64[]
+end
+
+# Get point indices for vector of voxel indices
 function invoxel{N, T}(voxels::Voxel, voxel_indices::Vector{NTuple{N,T}})
     num_query_voxels = length(voxel_indices)
     indices = Array(Vector{Int64}, num_query_voxels)
@@ -154,21 +195,6 @@ function invoxel{N, T}(voxels::Voxel, voxel_indices::Vector{NTuple{N,T}})
         indices[i] = invoxel(voxels, voxel_indices[i])
     end
     return indices
-end
-
-# Return point indices for a voxel index
-function invoxel{N, T}(voxels::Voxel, voxel_index::NTuple{N,T})
-    range = get(voxels.ind_range, voxel_index, 0:0)
-    indices = range != 0:0 ? indices = Int64[voxels.ind_lookup[j] for j in range] : Int64[]
-end
-
-# Return point indices for all voxels
-invoxel(voxels::Voxel) = invoxel(voxels, voxels.indices)
-
-# Return voxel index given a position
-function invoxel{T <: AbstractFloat}(voxels::Voxel, point::Vector{T})
-    point = point .- voxels.offset # Centre into voxelized frame
-    return tuple(floor(point./voxels.voxel_size) + 1.0 ...)
 end
 
 function Base.show(io::IO, voxels::Voxel)
@@ -182,14 +208,11 @@ end
 # -----------------------------------------------------------------------------
 
 """
-` Rasterize a points cloud in 2D`
+    rasterize_points(points, dx::AbstractFloat)
 
-### Inputs:
-* `points::Matrix`: D x N matrix of points
-* `dx::AbstractFloat`: cell size
-
-### Outputs:
-* `Dict`: a dictionary that contains the indices of all the points that are in a cell
+Rasterize `points` in 2-dimensions. Returns a `Dict` that contains the indices
+of all points that are in a cell. Input `points` can either be a DxN matrix or
+a `PointCloud` and `dx` is the distance between rasters.
 """
 function rasterize_points(points, dx::AbstractFloat)
     _, num_points = size(points)
@@ -208,17 +231,6 @@ function rasterize_points(points, dx::AbstractFloat)
     return pixels
 end
 
-
-"""
-` Rasterize a points cloud in 2D`
-
-### Inputs:
-* `cloud::PointCloud`: A point cloud
-* `dx::AbstractFloat`: cell size
-
-### Outputs:
-* `Dict`: a dictionary that contains the indices of all the points that are in a cell
-"""
 function rasterize_points(cloud::PointCloud, dx::AbstractFloat)
     return rasterize_points(destructure(cloud.positions), dx)
 end

@@ -27,6 +27,7 @@ export
     # Adding columns
     add_normals!,
     # rasterier
-    rasterize_points
+    rasterize_points,
+    rasterize_points2
 
 end # module

@@ -10,7 +10,6 @@ import NearestNeighbors:
 
 using NearestNeighbors
 using FixedSizeArrays
-using Devectorize
 
 export PointCloud,
     # Point cloud data access
@@ -28,7 +27,8 @@ export PointCloud,
     # Create voxels
     Voxel,
     voxelize,
-    invoxel
+    invoxel,
+    get_voxel_index
 
 include("cloud.jl")
 include("spatial_grid.jl")

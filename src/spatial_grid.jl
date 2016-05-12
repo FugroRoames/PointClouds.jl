@@ -40,178 +40,171 @@ function rasterize_points{T <: AbstractFloat}(points::Matrix{T}, dx::T)
     return pixels
 end
 
-"""
-A data structure for organising points into voxels.
+typealias VoxelId NTuple{3, Int}
 
-See `voxelize` for creating a voxel structure and `invoxel` for querying position of points in a
-`Voxel`.
+"""
+Creates a sparse spatial grid by organising 3D points into voxels for optimised lookup.
+
+See `voxelize` for creating a sparse voxel grid, `voxelids` for obtaining voxel ids and
+`invoxel` for querying points indices.
 
 ### Constructor
-    Voxel(centres, indices, voxel_size, offset, ind_range, ind_lookup)
+    SparseVoxelGrid(voxel_size, ind_range, indices)
 
 ### Arguments
 
-* `centres::Matrix{AbstractFloat}` : Centre points of voxel
-* `indices::Vector{Tuple}` : Voxel indices
-* `voxel_size::Real` : Size of voxel
-* `offset::Vector{AbstractFloat}` : Lowest coordinate in the dataset
-* `ind_range::Dict` : Point position range for voxel index
-* `ind_lookup::Dict` : Dictionary lookup
+* `voxel_size::AbstractFloat` : Side length of each voxel cell
+* `ind_range::Dict{NTuple{3,Int}, UnitRange{Int}}` : Store a range of point indices for each unique voxel id
+* `indices::Vector{Int}` : A vector holding the original point indices
+
+### Usage
+
+To create a spatial grid with voxel side length of 10 metres for arbitrary points:
+```julia
+using PointClouds
+points = rand(3, 100000) * 20.0
+grid = voxelize(points, 10.0)
+```
+To find the point indices in each voxel:
+```julia
+for voxel_id in voxelids(grid)
+    # Create iterator over point indices
+    indices_iter = invoxel(grid, voxel_id)
+
+    # Collect all indices for current voxel
+    point_inds = collect(indices_iter)
+
+    # Or, iterate each individual point
+    for point_idx in indices_iter
+        # Then something with point_idx
+    end
+end
+```
 """
-type Voxel{T, N}
-    centres::Matrix{T}
-    indices::Vector{NTuple{N, Int64}}
-    voxel_size::Real
-    offset::Vector{T}
-    ind_range::Dict{NTuple{N, Int64}, UnitRange{Int64}}
-    ind_lookup::Dict
+type SparseVoxelGrid{T <: AbstractFloat}
+    voxel_size::T
+    ind_range::Dict{VoxelId, UnitRange{Int}}
+    indices::Vector{Int}
 end
 
 """
-    voxelize(points, voxel_size::Real [; offset_flag = false]) -> voxels
+    make_voxel_id(points::Matrix, index, voxel_size)
 
-Create a `Voxel` data structure for the `points` using the `voxel_size`.
-
-The `points` can either be a `PointCloud` (see `PointClouds`) or a `Matrix{AbstractFloat}`.
-If `offset_flag = true` then the voxel `centres` are offset by the minimum coordinate position.
+Create a 3D voxel id tuple for the point specified by the column index.
 """
-function voxelize{T <: AbstractFloat}(points::Matrix{T}, voxel_size::Real; offset_flag::Bool = false)
+function make_voxel_id(points::Matrix, index, voxel_size)
+    (ceil(Int, (points[1, index] + eps()) / voxel_size),
+     ceil(Int, (points[2, index] + eps()) / voxel_size),
+     ceil(Int, (points[3, index] + eps()) / voxel_size))
+end
+
+"""
+    voxel_centre(voxel_size::AbstractFloat, voxel_id::VoxelId)
+
+Calculate the centre point of each voxel in the spatial grid.
+"""
+function voxel_centre(voxel_size::AbstractFloat, voxel_id::VoxelId)
+    centre = collect(voxel_id) * voxel_size - voxel_size * 0.5
+end
+
+"""
+    voxelize(points, voxel_size::AbstractFloat) -> grid::SparseVoxelGrid
+
+Create a `SparseVoxelGrid` data structure for the `points` using the `voxel_size`. The `points`
+can be a `PointCloud` (see `PointClouds`) or a `Matrix{AbstractFloat}`.
+
+See `SparseVoxelGrid` for detailed usage.
+"""
+function voxelize{T <: AbstractFloat}(points::Matrix{T}, voxel_size::T)
     ndims, npoints = size(points)
-    offset = minimum(points, 2)
-    points = points .- offset .+ eps()
+    ndims != 3 && throw(ArgumentError("Points dimensions are $(size(points)), should be a 3xN matrix."))
 
-    # Get indices for voxels
-    indices = get_indices(points, voxel_size)
-
-    # Sort point indices to get easy range look up for each voxel
-    permutation = sortperm(indices)
-    sorted_ind = indices[permutation]
-    unique_ind = unique(sorted_ind)
-
-    # Create a dictionary assigning voxel indices to UnitRange of points
-    indices_range = get_indices_range(unique_ind, sorted_ind)
-
-    # Look up to map the UnitRange to original point indices
-    ind_lookup = Dict{Int64, Int64}()
-    @inbounds for i in eachindex(permutation)
-        ind_lookup[i] = permutation[i]
+    # Assign each point to a voxel id
+    voxel_ids = Vector{VoxelId}(npoints)
+    for j = 1:npoints
+        voxel_ids[j] = make_voxel_id(points, j, voxel_size)
     end
 
-    # Centre position of each voxel
-    if offset_flag
-        centres = get_centres(unique_ind, voxel_size)
-    else
-        centres = get_centres(unique_ind, voxel_size) .+ offset
+    group_counts = Dict{VoxelId, Int}()
+    for id in voxel_ids
+        group_counts[id] = get(group_counts, id, 0) + 1
     end
 
-    return Voxel(centres, unique_ind, voxel_size, collect(offset), indices_range, ind_lookup)
+    ind_range = Dict{VoxelId, UnitRange{Int}}()
+    current_index = 1
+    for (group_id, group_size) in group_counts
+        ind_range[group_id] = current_index:current_index+group_size-1
+        current_index += group_size
+    end
+
+    index = Vector{Int}(npoints)
+    for j = 1:npoints
+        id = voxel_ids[j]
+        index_in_group = group_counts[id]
+        group_counts[id] = index_in_group - 1
+        index[first(ind_range[id]) + index_in_group-1] = j
+    end
+
+    return SparseVoxelGrid(voxel_size, ind_range, index)
 end
 
 # Voxelize point cloud
-voxelize(cloud::PointCloud, voxel_size::Real) = voxelize(destructure(cloud.positions), voxel_size)
+voxelize(cloud::PointCloud, voxel_size::AbstractFloat) = voxelize(destructure(cloud.positions), voxel_size)
 
-Base.length(v::Voxel) = length(v.indices)
-Base.ndims(v::Voxel) = size(v.centres, 1)
-
-# Calculate centre point of voxels
-function get_centres(indices, voxel_size)
-    ndims = length(indices[1])
-    nvoxels = length(indices)
-    # indices position (middle point of indices)
-    centres = Array(Float64, ndims, nvoxels)
-    @inbounds for i in 1:nvoxels
-        centres[:,i] = collect(indices[i]) * voxel_size - voxel_size * 0.5
-    end
-    return centres
-end
-
-# Calculate voxel indices
-function get_indices{T <: AbstractFloat}(points::Matrix{T}, voxel_size)
-    ndims, npoints = size(points)
-    tmp = zeros(Float64, ndims)
-    indices = Array(NTuple{ndims, Int64}, npoints)
-    @inbounds for i in 1:npoints
-        tmp[:] = ceil(Int64, points[:, i] ./ voxel_size)
-        indices[i] = tuple(tmp...)
-    end
-    return indices
-end
-
-# Get the point range for each of the same voxel indices
-# Assign the point ranges to voxel indices
-function get_indices_range(unique_ind, sorted_ind)
-    # Determine when voxel indices change (using a similar method to zero crossings)
-    tmp_arr = Array(Float64, length(unique_ind[1]), length(sorted_ind))
-    @inbounds for i = 1:length(sorted_ind)
-        tmp_arr[:, i] = collect(sorted_ind[i])
-    end
-    zc = sum(abs(diff(tmp_arr, 2)), 1)
-    zc_ind = find(zc .!= 0.0)
-    push!(zc_ind, length(sorted_ind))  # Finish at last point
-
-    start_ind = 1
-    indices_range = Dict{eltype(unique_ind), UnitRange{Int64}}()
-    @inbounds for (i, ind) in enumerate(zc_ind)
-        indices_range[unique_ind[i]] = start_ind:ind
-        start_ind = ind + 1
-    end
-    return indices_range
+# Functionality for SparseVoxelGrid
+Base.length(grid::SparseVoxelGrid) = length(grid.ind_range)
+Base.isempty(grid::SparseVoxelGrid) = length(grid) == 0
+function Base.show(io::IO, grid::SparseVoxelGrid)
+    println(io, typeof(grid))
+    println(io, "  Number of voxels: ", length(grid.ind_range))
+    println(io, "  Number of points in grid: ", length(grid.indices))
+    print(io, "  Voxel side length: ", grid.voxel_size)
 end
 
 """
-    get_voxel_index(voxels::Voxel, point::Vector) -> voxel_index
+    invoxel(grid::SparseVoxelGrid, voxel_id::Vector)
 
-Return a voxel `index` given a `point`.
+Returns an iterator to retrieve point indices in the `voxel_id`.
 """
-function get_voxel_index{T <: AbstractFloat}(voxels::Voxel, point::Vector{T})
-    point = point .- voxels.offset .+ eps()  # Centre into voxelized frame
-    return tuple(ceil(Int64, point ./ voxel_size) ...)
+function invoxel(grid::SparseVoxelGrid, voxel_id::VoxelId)
+    ind_range = get(grid.ind_range, voxel_id, 0:-1)
+    VoxelIndicesIter(grid.indices, ind_range)
+end
+
+immutable VoxelIndicesIter
+    indices::Vector{Int}
+    range::UnitRange{Int}
+end
+# Functionality for VoxelIndicesIter
+Base.start(indices::VoxelIndicesIter) = 1
+Base.next(indices::VoxelIndicesIter, state) = indices.indices[indices.range[state]], state + 1
+Base.done(indices::VoxelIndicesIter, state) = state > length(indices.range)
+Base.eltype(::VoxelIndicesIter) = Int
+function Base.show(io::IO, indices::VoxelIndicesIter)
+    print(io, typeof(indices), " with ", length(indices.range), " voxel indices.")
 end
 
 """
-Find point indices in a voxel dataset specified by the voxel `indices`.
+    voxelids(grid::SparseVoxelGrid) -> voxel_ids
 
-If no voxel indices are given, then all voxel points are returned. Voxel indices
-can either be a `Tuple` or `Vector{Tuple}`.
-
-### Constructors
-    invoxel(voxels::Voxel)
-    invoxel(voxels::Voxel, index::Tuple)
-    invoxel(voxels::Voxel, indices::Vector{Tuple})
-
-### Example
-
-```julia
-points = rand(3, 100) * 2.0                         # Create random points
-voxel_size = 1.0                                    # Define voxel size
-voxels = voxelize(points, voxel_size)               # Create voxels
-indices = invoxel(voxels)                           # All voxels
-indices = invoxel(voxels, (1, 1, 1))                # Voxel index (1,1,1)
-indices = invoxel(voxels, [(1, 1, 1), (1, 2, 1)])   # Voxel index (1,1,1) and (1,2,1)
-```
+Returns an iteratable object for the voxel ids in the grid.
 """
-invoxel(voxels::Voxel) = invoxel(voxels, voxels.indices)
+voxelids(grid::SparseVoxelGrid) = VoxelIDIter(grid.ind_range)
 
-# Get point indices for a voxel index
-function invoxel{N, T}(voxels::Voxel, voxel_index::NTuple{N,T})
-    range = get(voxels.ind_range, voxel_index, 0:0)
-    indices = range != 0:0 ? indices = Int64[voxels.ind_lookup[j] for j in range] : Int64[]
+immutable VoxelIDIter
+    dict::Dict{VoxelId, UnitRange{Int}}
 end
 
-# Get point indices for vector of voxel indices
-function invoxel{N, T}(voxels::Voxel, voxel_indices::Vector{NTuple{N,T}})
-    num_query_voxels = length(voxel_indices)
-    indices = Array(Vector{Int64}, num_query_voxels)
-    for i = 1:num_query_voxels
-        indices[i] = invoxel(voxels, voxel_indices[i])
-    end
-    return indices
+# Functionality for VoxelIDIter
+Base.length(v::VoxelIDIter) = length(v.dict)
+Base.isempty(v::VoxelIDIter) = isempty(v.dict)
+Base.start(grid::VoxelIDIter) = start(grid.dict)
+function Base.next(grid::VoxelIDIter, state)
+    n = next(grid.dict, state)
+    n[1][1], n[2]
 end
-
-# Show voxel to IO
-function Base.show(io::IO, voxels::Voxel)
-    println(io, typeof(voxels))
-    println(io, "  Number of voxels: ", length(voxels))
-    println(io, "  Voxel Size: ", voxels.voxel_size)
-    print(io, "  Offset: ", voxels.offset)
+Base.done(grid::VoxelIDIter, state) = done(grid.dict, state)
+Base.eltype(::VoxelIDIter) = VoxelId
+function Base.show(io::IO, iter::VoxelIDIter)
+    print(io, typeof(iter), " with ", length(iter.dict), " voxel ids.")
 end

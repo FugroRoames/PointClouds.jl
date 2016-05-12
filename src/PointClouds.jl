@@ -24,11 +24,11 @@ export PointCloud,
     add_normals!,
     # Rasterizer
     rasterize_points,
-    # Create voxels
-    Voxel,
+    # Voxel spatial grid
+    SparseVoxelGrid,
     voxelize,
     invoxel,
-    get_voxel_index
+    voxelids
 
 include("cloud.jl")
 include("spatial_grid.jl")

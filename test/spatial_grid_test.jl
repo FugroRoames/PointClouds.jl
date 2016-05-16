@@ -1,28 +1,46 @@
 @testset "Voxels" begin
     @testset "3x3 point grid voxelization " begin
         # Create a 3x3 grid
-        x_space = collect(linspace(0.0, 3.0, 4))
-        y_space = x_space
-        z_space = x_space
-        x = [i for i in y_space, j in x_space, z in z_space]
-        y = [j for i in y_space, j in x_space, z in z_space]
-        z = [z for i in y_space, j in y_space, z in z_space]
-        points = (hcat([[x[i], y[i], z[i]] for i = 1:length(x)]...))
+        x = collect(linspace(0.0, 3.0, 4))
+        cnt = 1;
+        points = zeros(3,64);
+        for i in x, j in x, k in x
+            points[1,cnt]  = i
+            points[2,cnt] = j
+            points[3,cnt] = k
+            cnt +=1
+        end
         voxel_size = 1.5
-        grid = voxelize(points, voxel_size)
-        for voxel_id in voxelids(grid)
-            indices = invoxel(grid, voxel_id)
-            @test length(collect(indices)) == 8
+        grid = SparseVoxelGrid(points, voxel_size)
+        @test length(collect(grid)) == 8
+        for voxel in grid
+            @test length(collect(voxel)) == 8
+        end
+
+        cloud = PointCloud(points)
+        grid = SparseVoxelGrid(cloud, voxel_size)
+        for voxel in grid
+            @test length(collect(voxel)) == 8
         end
     end
 
-    @testset "Voxelize point cloud" begin
-        # points in a straight line
-        cloud = PointCloud([Vec(i, 0.0, 0.0) for i = 1:10])
-        grid = voxelize(cloud, 2.0)
-        for voxel_id in voxelids(grid)
-            indices = invoxel(grid, voxel_id)
-            @test length(collect(indices)) == 2
+    @testset "Neighbouring voxel" begin
+        srand(1)
+        points = rand(3, 10000) * 10.0
+        grid = SparseVoxelGrid(points, 5.0)
+        radius = 1
+        for voxel in grid
+            @test length(collect(in_cuboid(grid, voxel, radius))) == 8
+        end
+
+        grid = SparseVoxelGrid(points, 2.5)
+        voxel_list = [(1,1,1), (1,2,1), (2,2,2)]
+        @test length(collect(in_cuboid(grid, voxel_list[1], radius))) == 8
+        @test length(collect(in_cuboid(grid, voxel_list[2], radius))) == 12
+        @test length(collect(in_cuboid(grid, voxel_list[3], 2))) == length(grid)
+
+        in_cuboid(grid, (1,1,1), radius) do voxel
+            @test haskey(grid, voxel.id)
         end
     end
 end

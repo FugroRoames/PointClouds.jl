@@ -26,9 +26,8 @@ export PointCloud,
     rasterize_points,
     # Voxel spatial grid
     SparseVoxelGrid,
-    voxelize,
-    invoxel,
-    voxelids
+    in_cuboid,
+    voxel_center
 
 include("cloud.jl")
 include("spatial_grid.jl")

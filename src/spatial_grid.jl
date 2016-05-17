@@ -214,7 +214,7 @@ end
 in_cuboid(f::Function, voxels::SparseVoxelGrid, voxel::Voxel, radius::Int) = in_cuboid(f, voxels, voxel.id, radius)
 
 function in_cuboid(f::Function, grid::SparseVoxelGrid, voxel::VoxelId, radius::Int)
-    for i=-radius+voxel[1]:radius+voxel[1], j=-radius+voxel[1]:radius+voxel[1], k=-radius+voxel[1]:radius+voxel[1]
+    for i=-radius+voxel[1]:radius+voxel[1], j=-radius+voxel[2]:radius+voxel[2], k=-radius+voxel[3]:radius+voxel[3]
         id = (i, j, k)
         if haskey(grid, id) && id != voxel
            f(grid[id])

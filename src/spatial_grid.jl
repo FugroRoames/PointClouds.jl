@@ -43,17 +43,12 @@ end
 typealias VoxelId NTuple{3, Int}
 
 """
-Creates a sparse spatial grid by organising 3D points into voxels.
-
-### Constructor
     SparseVoxelGrid(points, voxel_size) -> grid
 
-### Arguments
+Creates a sparse spatial grid by organising 3D points into voxels. `points` can either
+be a 3xN matrix or a `PointCloud`. The `voxel_size` is the side length of each cell.
 
-* `points` : A 3xN matrix of points or a `PointCloud`
-* `voxel_size::AbstractFloat` : Side length of each voxel cell
-
-### Usage
+### Example
 
 To create a spatial grid with voxel side length of 10 metres for arbitrary points:
 ```julia
@@ -173,19 +168,20 @@ end
 "Voxel iterator that returns the `Voxel`s. See `in_cuboid()` for usage."
 immutable VoxelCuboid
     voxels::SparseVoxelGrid
+    voxel_id::VoxelId
     range::CartesianRange{CartesianIndex{3}}
 end
 
 # TODO the `do` syntax for in_cuboid is faster than the iterator - can the iterator be improved?
 
 """
-Search for neighbouring voxels within a `radius` around the reference `voxel` or `voxel_id`.
-
-### Constructors
     in_cuboid(grid::SparseVoxelGrid, voxel::Voxel, radius::Int)
     in_cuboid(grid::SparseVoxelGrid, voxel_id::NTuple{3,Int64}, radius::Int)
 
-### Usage
+Search for neighbouring voxels within a `radius` around the reference `voxel` or `voxel_id`.
+Returns a `Voxel` in each iteration.
+
+### Example
 The `in_cuboid` function can be implemented using the `do` block syntax:
 
 ```julia
@@ -200,7 +196,7 @@ in_cuboid(grid, query_voxel, radius) do voxel
 end
 ```
 
-Alternatively, using a `for` loop which iterates each voxel:
+Alternatively, you may use a `for` loop which returns a voxel in each iteratation:
 ```julia
 for voxel in in_cuboid(grid, query_voxel, radius)
     # do stuff with the `Voxel` (i.e. collect(voxel) or for index in voxel etc.)
@@ -212,7 +208,7 @@ in_cuboid(voxels::SparseVoxelGrid, voxel::Voxel, radius::Int) = in_cuboid(voxels
 function in_cuboid(grid::SparseVoxelGrid, voxel::VoxelId, radius::Int)
     start = CartesianIndex((-radius+voxel[1], -radius+voxel[2], -radius+voxel[3]))
     stop = CartesianIndex((radius+voxel[1], radius+voxel[2], radius+voxel[3]))
-    VoxelCuboid(grid, CartesianRange(start, stop))
+    VoxelCuboid(grid, voxel, CartesianRange(start, stop))
 end
 
 in_cuboid(f::Function, voxels::SparseVoxelGrid, voxel::Voxel, radius::Int) = in_cuboid(f, voxels, voxel.id, radius)
@@ -220,7 +216,7 @@ in_cuboid(f::Function, voxels::SparseVoxelGrid, voxel::Voxel, radius::Int) = in_
 function in_cuboid(f::Function, grid::SparseVoxelGrid, voxel::VoxelId, radius::Int)
     for i=-radius+voxel[1]:radius+voxel[1], j=-radius+voxel[1]:radius+voxel[1], k=-radius+voxel[1]:radius+voxel[1]
         id = (i, j, k)
-        if haskey(grid, id)
+        if haskey(grid, id) && id != voxel
            f(grid[id])
         end
     end
@@ -228,11 +224,11 @@ end
 
 function Base.start(c::VoxelCuboid)
     state = Base.start(c.range)
-    if !haskey(c.voxels, state.I) # first voxel id is not in grid
+    if !haskey(c.voxels, state.I) || c.voxel_id == state # first voxel id is not in grid
         # find the next voxel in grid
         while !Base.done(c.range, state)
             id, state = Base.next(c.range, state)
-            if haskey(c.voxels, id.I)
+            if haskey(c.voxels, id.I) && c.voxel_id != id.I
                 # return the voxel id
                 return id, 1
             end
@@ -241,7 +237,7 @@ function Base.start(c::VoxelCuboid)
         return state, 0
     end
     # return the starting voxel
-	return state, 1
+    return state, 1
 end
 function Base.next(c::VoxelCuboid, state)
     voxel = c.voxels[state[1].I]
@@ -249,7 +245,7 @@ function Base.next(c::VoxelCuboid, state)
     # find the next voxel
     while !Base.done(c.range, next_state)
         id, next_state = Base.next(c.range, next_state)
-        if haskey(c.voxels, next_state.I)
+        if haskey(c.voxels, next_state.I) && c.voxel_id != next_state.I
             # return current voxel and the state for the next voxel
             return voxel, (next_state, 1)
         end
@@ -264,7 +260,7 @@ function Base.show(io::IO, c::VoxelCuboid)
 end
 
 """
-     voxel_center(grid::SparseVoxelGrid, voxel_id::NTuple{3,Int64})
+    voxel_center(grid::SparseVoxelGrid, voxel_id::NTuple{3,Int64})
 
 Calculate the centre point for the `voxel_id` in the spatial grid.
 """

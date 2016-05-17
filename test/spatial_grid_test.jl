@@ -30,14 +30,14 @@
         grid = SparseVoxelGrid(points, 5.0)
         radius = 1
         for voxel in grid
-            @test length(collect(in_cuboid(grid, voxel, radius))) == 8
+            @test length(collect(in_cuboid(grid, voxel, radius))) == 7
         end
 
         grid = SparseVoxelGrid(points, 2.5)
         voxel_list = [(1,1,1), (1,2,1), (2,2,2)]
-        @test length(collect(in_cuboid(grid, voxel_list[1], radius))) == 8
-        @test length(collect(in_cuboid(grid, voxel_list[2], radius))) == 12
-        @test length(collect(in_cuboid(grid, voxel_list[3], 2))) == length(grid)
+        @test length(collect(in_cuboid(grid, voxel_list[1], radius))) == 7
+        @test length(collect(in_cuboid(grid, voxel_list[2], radius))) == 11
+        @test length(collect(in_cuboid(grid, voxel_list[3], 2))) == length(grid)-1
 
         in_cuboid(grid, (1,1,1), radius) do voxel
             @test haskey(grid, voxel.id)

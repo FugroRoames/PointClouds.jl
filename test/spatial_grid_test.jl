@@ -10,7 +10,7 @@
             points[3,cnt] = k
             cnt +=1
         end
-        voxel_size = 1.5
+        voxel_size = 1.51
         grid = SparseVoxelGrid(points, voxel_size)
         @test length(collect(grid)) == 8
         for voxel in grid
@@ -35,8 +35,8 @@
 
         grid = SparseVoxelGrid(points, 2.5)
         voxel_list = [(1,1,1), (1,2,1), (2,2,2)]
-        @test length(collect(in_cuboid(grid, voxel_list[1], radius))) == 7
-        @test length(collect(in_cuboid(grid, voxel_list[2], radius))) == 11
+        @test length(collect(in_cuboid(grid, voxel_list[1], radius))) == 26
+        @test length(collect(in_cuboid(grid, voxel_list[2], radius))) == 26
         @test length(collect(in_cuboid(grid, voxel_list[3], 2))) == length(grid)-1
 
         in_cuboid(grid, (1,1,1), radius) do voxel

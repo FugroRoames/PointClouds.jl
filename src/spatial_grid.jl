@@ -134,10 +134,9 @@ end
 
 Create a 3D voxel id tuple for the point specified by the column index.
 """
-function make_voxel_id(points::Matrix, index, voxel_size)
-    (ceil(Int, (points[1, index] + eps()) / voxel_size),
-     ceil(Int, (points[2, index] + eps()) / voxel_size),
-     ceil(Int, (points[3, index] + eps()) / voxel_size))
+function make_voxel_id(points::Matrix, index, voxel_size::AbstractFloat)
+    (floor(Int, points[1, index] / voxel_size), floor(Int, points[2, index] / voxel_size),
+     floor(Int, points[3, index] / voxel_size))
 end
 
 "An iterator type to return point indices in a voxel. See SparseVoxelGrid() for usage."

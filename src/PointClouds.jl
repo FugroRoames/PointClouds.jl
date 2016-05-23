@@ -11,11 +11,7 @@ import NearestNeighbors:
 using NearestNeighbors
 using FixedSizeArrays
 
-include("cloud.jl")
-include("spatial_grid.jl")
-
-export
-    PointCloud,
+export PointCloud,
     # Point cloud data access
     positions,
     normals,
@@ -26,7 +22,14 @@ export
     split_cloud,
     # Adding columns
     add_normals!,
-    # rasterier
-    rasterize_points
+    # Rasterizer
+    rasterize_points,
+    # Voxel spatial grid
+    SparseVoxelGrid,
+    in_cuboid,
+    voxel_center
+
+include("cloud.jl")
+include("spatial_grid.jl")
 
 end # module

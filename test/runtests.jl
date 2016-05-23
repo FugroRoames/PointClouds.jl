@@ -9,3 +9,4 @@ else
 end
 
 include("cloud_test.jl")
+include("spatial_grid_test.jl")

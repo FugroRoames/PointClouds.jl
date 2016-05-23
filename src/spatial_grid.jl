@@ -82,17 +82,21 @@ function SparseVoxelGrid{T <: AbstractFloat}(points::Matrix{T}, voxel_size::T)
     ndims, npoints = size(points)
     ndims != 3 && throw(ArgumentError("Points dimensions are $(size(points)), should be a 3xN matrix."))
 
+    # In order to avoid allocating a vector for each voxel, we construct the data structure in a backward-looking order.
+
     # Assign each point to a voxel id
     voxel_ids = Vector{VoxelId}(npoints)
     for j = 1:npoints
         voxel_ids[j] = make_voxel_id(points, j, voxel_size)
     end
 
+    # Count the number of points in each voxel
     group_counts = Dict{VoxelId, Int}()
     for id in voxel_ids
         group_counts[id] = get(group_counts, id, 0) + 1
     end
 
+    # Allocate ranges for the indices of points in each voxel based on the counts
     voxel_info = Dict{VoxelId, UnitRange{Int64}}()
     current_index = 1
     for (group_id, group_size) in group_counts
@@ -100,6 +104,7 @@ function SparseVoxelGrid{T <: AbstractFloat}(points::Matrix{T}, voxel_size::T)
         current_index += group_size
     end
 
+    # Place indices for points into the appropriate index range for the associated voxel
     point_indices = Vector{Int}(npoints)
     for j = 1:npoints
         id = voxel_ids[j]
@@ -151,7 +156,7 @@ function Base.next(v::SparseVoxelGrid, state)
 end
 Base.done(grid::SparseVoxelGrid, state) = done(grid.voxel_info, state)
 Base.eltype(::SparseVoxelGrid) = Voxel
-function Base.getindex(grid::SparseVoxelGrid, id)
+function Base.getindex(grid::SparseVoxelGrid, id::VoxelId)
     Voxel(id, grid.voxel_info[id], grid.point_indices)
 end
 
@@ -167,7 +172,7 @@ end
 
 "Voxel iterator that returns the `Voxel`s. See `in_cuboid()` for usage."
 immutable VoxelCuboid
-    voxels::SparseVoxelGrid
+    grid::SparseVoxelGrid
     voxel_id::VoxelId
     range::CartesianRange{CartesianIndex{3}}
 end
@@ -203,7 +208,7 @@ for voxel in in_cuboid(grid, query_voxel, radius)
 end
 ```
 """
-in_cuboid(voxels::SparseVoxelGrid, voxel::Voxel, radius::Int) = in_cuboid(voxels, voxel.id, radius)
+in_cuboid(grid::SparseVoxelGrid, voxel::Voxel, radius::Int) = in_cuboid(grid, voxel.id, radius)
 
 function in_cuboid(grid::SparseVoxelGrid, voxel::VoxelId, radius::Int)
     start = CartesianIndex((-radius+voxel[1], -radius+voxel[2], -radius+voxel[3]))
@@ -211,7 +216,7 @@ function in_cuboid(grid::SparseVoxelGrid, voxel::VoxelId, radius::Int)
     VoxelCuboid(grid, voxel, CartesianRange(start, stop))
 end
 
-in_cuboid(f::Function, voxels::SparseVoxelGrid, voxel::Voxel, radius::Int) = in_cuboid(f, voxels, voxel.id, radius)
+in_cuboid(f::Function, grid::SparseVoxelGrid, voxel::Voxel, radius::Int) = in_cuboid(f, grid, voxel.id, radius)
 
 function in_cuboid(f::Function, grid::SparseVoxelGrid, voxel::VoxelId, radius::Int)
     for i=-radius+voxel[1]:radius+voxel[1], j=-radius+voxel[2]:radius+voxel[2], k=-radius+voxel[3]:radius+voxel[3]
@@ -222,13 +227,19 @@ function in_cuboid(f::Function, grid::SparseVoxelGrid, voxel::VoxelId, radius::I
     end
 end
 
+function Base.getindex(c::VoxelCuboid, id::CartesianIndex{3})
+    Voxel(id.I, c.grid.voxel_info[id.I], c.grid.point_indices)
+end
+
+Base.haskey(c::VoxelCuboid, next_id::CartesianIndex{3}) = haskey(c.grid, next_id.I)
+
 function Base.start(c::VoxelCuboid)
-    state = Base.start(c.range)
-    if !haskey(c.voxels, state.I) || c.voxel_id == state # first voxel id is not in grid
+    state = start(c.range)
+    if !haskey(c.grid, state.I) # first voxel id is not in grid
         # find the next voxel in grid
-        while !Base.done(c.range, state)
-            id, state = Base.next(c.range, state)
-            if haskey(c.voxels, id.I) && c.voxel_id != id.I
+        while !done(c.range, state)
+            id, state = next(c.range, state)
+            if haskey(c.grid, id.I) && c.voxel_id != id.I
                 # return the voxel id
                 return id, 1
             end
@@ -239,13 +250,13 @@ function Base.start(c::VoxelCuboid)
     # return the starting voxel
     return state, 1
 end
-function Base.next(c::VoxelCuboid, state)
-    voxel = c.voxels[state[1].I]
+function Base.next(c::VoxelCuboid, state::Tuple{CartesianIndex{3}, Int64})
     next_state = state[1]
+    voxel = c[next_state]
     # find the next voxel
-    while !Base.done(c.range, next_state)
-        id, next_state = Base.next(c.range, next_state)
-        if haskey(c.voxels, next_state.I) && c.voxel_id != next_state.I
+    while !done(c.range, next_state)
+        id, next_state = next(c.range, next_state)
+        if haskey(c.grid.voxel_info, next_state.I) && c.voxel_id != next_state.I
             # return current voxel and the state for the next voxel
             return voxel, (next_state, 1)
         end

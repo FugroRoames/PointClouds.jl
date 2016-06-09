@@ -97,7 +97,7 @@ function SparseVoxelGrid{T <: AbstractFloat}(points::Matrix{T}, voxel_size::T)
     end
 
     # Allocate ranges for the indices of points in each voxel based on the counts
-    voxel_info = Dict{VoxelId, UnitRange{Int64}}()
+    voxel_info = Dict{VoxelId, UnitRange{Int}}()
     current_index = 1
     for (group_id, group_size) in group_counts
         voxel_info[group_id] = current_index:current_index+group_size-1
@@ -165,6 +165,7 @@ function Base.next(v::Voxel, state)
 end
 Base.done(v::Voxel, state) = state > length(v.point_index_range)
 Base.eltype(::Voxel) = Int
+Base.length(v::Voxel) = length(v.point_index_range)
 function Base.show(io::IO, v::Voxel)
     print(io, typeof(v), " ", v.id, " with ", length(v.point_index_range), " points")
 end
@@ -180,7 +181,7 @@ end
 
 """
     in_cuboid(grid::SparseVoxelGrid, voxel::Voxel, radius::Int)
-    in_cuboid(grid::SparseVoxelGrid, voxel_id::NTuple{3,Int64}, radius::Int)
+    in_cuboid(grid::SparseVoxelGrid, voxel_id::NTuple{3,Int}, radius::Int)
 
 Search for neighbouring voxels within a `radius` around the reference `voxel` or `voxel_id`.
 Returns a `Voxel` in each iteration.
@@ -249,7 +250,7 @@ function Base.start(c::VoxelCuboid)
     # return the starting voxel
     return state, 1
 end
-function Base.next(c::VoxelCuboid, state::Tuple{CartesianIndex{3}, Int64})
+function Base.next(c::VoxelCuboid, state::Tuple{CartesianIndex{3}, Int})
     next_state = state[1]
     voxel = c[next_state]
     # find the next voxel
@@ -265,12 +266,17 @@ function Base.next(c::VoxelCuboid, state::Tuple{CartesianIndex{3}, Int64})
 end
 Base.done(c::VoxelCuboid, state) = state[2] == 0 || state[1][3] > c.range.stop[3]
 Base.eltype(::VoxelCuboid) = Voxel
+if VERSION >= v"0.5.0-dev+3305"
+    # See https://github.com/JuliaLang/julia/issues/15977
+    # Possibly could implement length() instead, but it's nontrivial work to compute.
+    Base.iteratorsize(::Type{VoxelCuboid}) = Base.SizeUnknown()
+end
 function Base.show(io::IO, c::VoxelCuboid)
     print(io, typeof(c), " ID iteration range: ", c.range.start.I, " -> ", c.range.stop.I)
 end
 
 """
-    voxel_center(grid::SparseVoxelGrid, voxel_id::NTuple{3,Int64})
+    voxel_center(grid::SparseVoxelGrid, voxel_id::NTuple{3,Int})
 
 Calculate the centre point for the `voxel_id` in the spatial grid.
 """

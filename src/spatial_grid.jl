@@ -165,6 +165,7 @@ function Base.next(v::Voxel, state)
 end
 Base.done(v::Voxel, state) = state > length(v.point_index_range)
 Base.eltype(::Voxel) = Int
+Base.length(v::Voxel) = length(v.point_index_range)
 function Base.show(io::IO, v::Voxel)
     print(io, typeof(v), " ", v.id, " with ", length(v.point_index_range), " points")
 end
@@ -265,6 +266,11 @@ function Base.next(c::VoxelCuboid, state::Tuple{CartesianIndex{3}, Int64})
 end
 Base.done(c::VoxelCuboid, state) = state[2] == 0 || state[1][3] > c.range.stop[3]
 Base.eltype(::VoxelCuboid) = Voxel
+if VERSION >= v"0.5.0-dev+3305"
+    # See https://github.com/JuliaLang/julia/issues/15977
+    # Possibly could implement length() instead, but it's nontrivial work to compute.
+    Base.iteratorsize(::Type{VoxelCuboid}) = Base.SizeUnknown()
+end
 function Base.show(io::IO, c::VoxelCuboid)
     print(io, typeof(c), " ID iteration range: ", c.range.start.I, " -> ", c.range.stop.I)
 end

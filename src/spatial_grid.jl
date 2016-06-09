@@ -97,7 +97,7 @@ function SparseVoxelGrid{T <: AbstractFloat}(points::Matrix{T}, voxel_size::T)
     end
 
     # Allocate ranges for the indices of points in each voxel based on the counts
-    voxel_info = Dict{VoxelId, UnitRange{Int64}}()
+    voxel_info = Dict{VoxelId, UnitRange{Int}}()
     current_index = 1
     for (group_id, group_size) in group_counts
         voxel_info[group_id] = current_index:current_index+group_size-1
@@ -181,7 +181,7 @@ end
 
 """
     in_cuboid(grid::SparseVoxelGrid, voxel::Voxel, radius::Int)
-    in_cuboid(grid::SparseVoxelGrid, voxel_id::NTuple{3,Int64}, radius::Int)
+    in_cuboid(grid::SparseVoxelGrid, voxel_id::NTuple{3,Int}, radius::Int)
 
 Search for neighbouring voxels within a `radius` around the reference `voxel` or `voxel_id`.
 Returns a `Voxel` in each iteration.
@@ -250,7 +250,7 @@ function Base.start(c::VoxelCuboid)
     # return the starting voxel
     return state, 1
 end
-function Base.next(c::VoxelCuboid, state::Tuple{CartesianIndex{3}, Int64})
+function Base.next(c::VoxelCuboid, state::Tuple{CartesianIndex{3}, Int})
     next_state = state[1]
     voxel = c[next_state]
     # find the next voxel
@@ -276,7 +276,7 @@ function Base.show(io::IO, c::VoxelCuboid)
 end
 
 """
-    voxel_center(grid::SparseVoxelGrid, voxel_id::NTuple{3,Int64})
+    voxel_center(grid::SparseVoxelGrid, voxel_id::NTuple{3,Int})
 
 Calculate the centre point for the `voxel_id` in the spatial grid.
 """

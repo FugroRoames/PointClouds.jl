@@ -43,10 +43,12 @@ end
 typealias VoxelId NTuple{3, Int}
 
 """
-    SparseVoxelGrid(points, voxel_size) -> grid
+    SparseVoxelGrid(points, voxel_size)
+    SparseVoxelGrid(points, size_x, size_y, size_z)
 
 Creates a sparse spatial grid by organising 3D points into voxels. `points` can either
-be a 3xN matrix or a `PointCloud`. The `voxel_size` is the side length of each cell.
+be a 3xN matrix or a `PointCloud`. `voxel_size` creates uniformly sized voxels in each axis.
+Alternatively, the size of the voxel in each axis can be specified.
 
 ### Example
 
@@ -73,12 +75,12 @@ end
 ```
 """
 immutable SparseVoxelGrid{T <: AbstractFloat}
-    voxel_size::T
+    voxel_size::Vec{3, T}
     voxel_info::Dict{VoxelId, UnitRange{Int}}
     point_indices::Vector{Int}
 end
 
-function SparseVoxelGrid{T <: AbstractFloat}(points::Matrix{T}, voxel_size::T)
+function SparseVoxelGrid{N, T <: AbstractFloat}(points::Matrix{T}, voxel_size::Vec{N, T})
     ndims, npoints = size(points)
     ndims != 3 && throw(ArgumentError("Points dimensions are $(size(points)), should be a 3xN matrix."))
 
@@ -116,8 +118,18 @@ function SparseVoxelGrid{T <: AbstractFloat}(points::Matrix{T}, voxel_size::T)
     return SparseVoxelGrid(voxel_size, voxel_info, point_indices)
 end
 
+# Create voxels with uniform size in each axis
+function SparseVoxelGrid{T <: AbstractFloat}(points::Matrix{T}, voxel_size::T)
+    SparseVoxelGrid(points, Vec{3, T}(voxel_size, voxel_size, voxel_size))
+end
+
+# Create voxels with specified side lengths
+function SparseVoxelGrid{T <: AbstractFloat}(points::Matrix{T}, size_x::T, size_y::T, size_z::T)
+    SparseVoxelGrid(points, Vec{3, T}(size_x, size_y, size_z))
+end
+
 # Voxelize point cloud
-SparseVoxelGrid(cloud::PointCloud, voxel_size::AbstractFloat) = SparseVoxelGrid(destructure(cloud.positions), voxel_size)
+SparseVoxelGrid(cloud::PointCloud, args...) = SparseVoxelGrid(destructure(cloud.positions), args...)
 
 Base.length(grid::SparseVoxelGrid) = length(grid.voxel_info)
 Base.isempty(grid::SparseVoxelGrid) = isempty(grid.voxel_info)
@@ -126,7 +138,7 @@ function Base.show(io::IO, grid::SparseVoxelGrid)
     println(io, typeof(grid))
     println(io, "  Number of voxels: ", length(grid))
     println(io, "  Number of points in grid: ", length(grid.point_indices))
-    print(io, "  Voxel side length: ", grid.voxel_size)
+    print(io, "  Side length per dimension: ", collect(grid.voxel_size))
 end
 
 """
@@ -134,9 +146,9 @@ end
 
 Create a 3D voxel id tuple for the point specified by the column index.
 """
-function make_voxel_id(points::Matrix, index, voxel_size::AbstractFloat)
-    (floor(Int, points[1, index] / voxel_size), floor(Int, points[2, index] / voxel_size),
-     floor(Int, points[3, index] / voxel_size))
+function make_voxel_id(points::Matrix, index, voxel_size::Vec)
+    (floor(Int, points[1, index] / voxel_size[1]), floor(Int, points[2, index] / voxel_size[2]),
+     floor(Int, points[3, index] / voxel_size[3]))
 end
 
 "An iterator type to return point indices in a voxel. See SparseVoxelGrid() for usage."

@@ -1,27 +1,32 @@
-@testset "Voxels" begin
-    @testset "3x3 point grid voxelization " begin
-        # Create a 3x3 grid
+@testset "SparseVoxelGrid tests" begin
+    @testset "Voxelization" begin
+        # Create points for a uniformly spaced 4x4x4 grid
         x = collect(linspace(0.0, 3.0, 4))
-        cnt = 1;
-        points = zeros(3,64);
+        cnt = 1
+        points = zeros(3, 64)
         for i in x, j in x, k in x
-            points[1,cnt]  = i
-            points[2,cnt] = j
-            points[3,cnt] = k
-            cnt +=1
+            points[1, cnt] = i
+            points[2, cnt] = j
+            points[3, cnt] = k
+            cnt += 1
         end
+
+        # Test standard uniformly sized voxels
         voxel_size = 1.51
         grid = SparseVoxelGrid(points, voxel_size)
         @test length(collect(grid)) == 8
-        for voxel in grid
-            @test length(collect(voxel)) == 8
-        end
+        [@test length(collect(voxel)) == 8 for voxel in grid]
 
+        # Test a point cloud
         cloud = PointCloud(points)
         grid = SparseVoxelGrid(cloud, voxel_size)
-        for voxel in grid
-            @test length(collect(voxel)) == 8
-        end
+        [@test length(collect(voxel)) == 8 for voxel in grid]
+
+        # Test voxels with different side lengths in each axis
+        grid = SparseVoxelGrid(cloud, voxel_size, voxel_size, 4.0)
+        [@test length(collect(voxel)) == 16 for voxel in grid]
+        grid = SparseVoxelGrid(points, voxel_size, 4.0, 4.0)
+        [@test length(collect(voxel)) == 32 for voxel in grid]
     end
 
     @testset "Neighbouring voxel" begin

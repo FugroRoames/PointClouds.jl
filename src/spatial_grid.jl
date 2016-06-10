@@ -44,11 +44,11 @@ typealias VoxelId NTuple{3, Int}
 
 """
     SparseVoxelGrid(points, voxel_size)
-    SparseVoxelGrid(points, size_x, size_y, size_z)
+    SparseVoxelGrid(points, voxel_size::NTuple{3, AbstractFloat})
 
 Creates a sparse spatial grid by organising 3D points into voxels. `points` can either
-be a 3xN matrix or a `PointCloud`. `voxel_size` creates uniformly sized voxels in each axis.
-Alternatively, the size of the voxel in each axis can be specified.
+be a 3xN matrix or a `PointCloud`. `voxel_size` will either create uniformly sized voxels in each
+axis or if it is a 3D tuple the size of each axis can be specified.
 
 ### Example
 
@@ -124,8 +124,8 @@ function SparseVoxelGrid{T <: AbstractFloat}(points::Matrix{T}, voxel_size::T)
 end
 
 # Create voxels with specified side lengths
-function SparseVoxelGrid{T <: AbstractFloat}(points::Matrix{T}, size_x::T, size_y::T, size_z::T)
-    SparseVoxelGrid(points, Vec{3, T}(size_x, size_y, size_z))
+function SparseVoxelGrid{T <: AbstractFloat}(points::Matrix{T}, voxel_size::NTuple{3, T})
+    SparseVoxelGrid(points, Vec{3, T}(voxel_size))
 end
 
 # Voxelize point cloud
@@ -146,7 +146,7 @@ end
 
 Create a 3D voxel id tuple for the point specified by the column index.
 """
-function make_voxel_id(points::Matrix, index, voxel_size::Vec)
+function make_voxel_id(points::Matrix, index::Int, voxel_size::Vec)
     (floor(Int, points[1, index] / voxel_size[1]), floor(Int, points[2, index] / voxel_size[2]),
      floor(Int, points[3, index] / voxel_size[3]))
 end

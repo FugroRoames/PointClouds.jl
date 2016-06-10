@@ -23,9 +23,9 @@
         [@test length(collect(voxel)) == 8 for voxel in grid]
 
         # Test voxels with different side lengths in each axis
-        grid = SparseVoxelGrid(cloud, voxel_size, voxel_size, 4.0)
+        grid = SparseVoxelGrid(cloud, (voxel_size, voxel_size, 4.0))
         [@test length(collect(voxel)) == 16 for voxel in grid]
-        grid = SparseVoxelGrid(points, voxel_size, 4.0, 4.0)
+        grid = SparseVoxelGrid(points, (voxel_size, 4.0, 4.0))
         [@test length(collect(voxel)) == 32 for voxel in grid]
     end
 

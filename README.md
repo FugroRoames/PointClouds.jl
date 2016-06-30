@@ -4,7 +4,7 @@ A package for flexible point cloud data handling.
 
 [![Build Status](https://travis-ci.org/FugroRoames/PointClouds.jl.svg?branch=master)](https://travis-ci.org/FugroRoames/PointClouds.jl)
 [![Build status](https://ci.appveyor.com/api/projects/status/bj9cu65wtb7a3j4t?svg=true)](https://ci.appveyor.com/project/c42f/pointclouds-jl)
-
+[![Coverage Status](https://coveralls.io/repos/github/FugroRoames/PointClouds.jl/badge.svg?branch=master)](https://coveralls.io/github/FugroRoames/PointClouds.jl?branch=master)
 
 ## Basic usage
 
@@ -47,4 +47,3 @@ terms of an underlying `DataFrame`, but at this stage the `DataFrames` package
 has a naturally strong focus on statistical computation, which seems somewhat at
 odds with the geometrically local spatial computation which one often wants with
 a point cloud.
-

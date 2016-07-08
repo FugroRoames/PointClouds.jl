@@ -1,35 +1,21 @@
 """
-` Rasterize a points cloud in 2D`
+    rasterize_points(cloud::PointCloud, dx::AbstractFloat)
+    rasterize_points(cloud::Matrix{<:AbstractFloat}, dx::AbstractFloat)
 
-### Inputs:
-* `cloud::PointCloud`: A point cloud
-* `dx::AbstractFloat`: cell size
-
-### Outputs:
-* `Dict`: a dictionary that contains the indices of all the points that are in a cell
+Rasterize points in 2D by a cell size `dx`.
+Returns a dictionary containing the indices points that are in a cell.
 """
 function rasterize_points(cloud::PointCloud, dx::AbstractFloat)
     return rasterize_points(destructure(cloud.positions), dx)
 end
 
-
-"""
-` Rasterize a points cloud in 2D`
-
-### Inputs:
-* `points::Matrix`: D x N matrix of points
-* `dx::AbstractFloat`: cell size
-
-### Outputs:
-* `Dict`: a dictionary that contains the indices of all the points that are in a cell
-"""
-function rasterize_points{T <: AbstractFloat}(points::Matrix{T}, dx::T)
-    _, num_points = size(points)
-    points = points .- minimum(points, 2) .- 1e-9*ones(3)
+function rasterize_points{T <: AbstractFloat}(points::Matrix{T}, dx::AbstractFloat)
+    num_dims, num_points = size(points)
+    points = points .- minimum(points, 2)
     nx = ceil(Int, maximum(points[1, :])/dx)
-    pixels = Dict{Tuple{Int,Int}, Vector{Int}}()
+    pixels = Dict{Tuple{Int, Int}, Vector{Int}}()
     for i = 1:num_points
-        key = (ceil(Int,points[1,i]/dx), ceil(Int,points[2,i]/dx))
+        key = (floor(Int, points[1, i]/dx), floor(Int, points[2, i]/dx))
         if haskey(pixels, key)
             push!(pixels[key], i)
         else
@@ -243,8 +229,6 @@ function Base.getindex(c::VoxelCuboid, id::CartesianIndex{3})
     Voxel(id.I, c.grid.voxel_info[id.I], c.grid.point_indices)
 end
 
-Base.haskey(c::VoxelCuboid, next_id::CartesianIndex{3}) = haskey(c.grid, next_id.I)
-
 function Base.start(c::VoxelCuboid)
     state = start(c.range)
     if !haskey(c.grid, state.I) # first voxel id is not in grid
@@ -293,5 +277,5 @@ end
 Calculate the centre point for the `voxel_id` in the spatial grid.
 """
 function voxel_center(grid::SparseVoxelGrid, voxel_id::VoxelId)
-    centre = collect(voxel_id) * grid.voxel_size - grid.voxel_size * 0.5
+    center = Vec(voxel_id) .* grid.voxel_size - grid.voxel_size * 0.5
 end

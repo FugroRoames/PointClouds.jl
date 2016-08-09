@@ -14,8 +14,9 @@ function rasterize_points{T <: AbstractFloat}(points::Matrix{T}, dx::AbstractFlo
     points = points .- minimum(points, 2)
     nx = ceil(Int, maximum(points[1, :])/dx)
     pixels = Dict{Tuple{Int, Int}, Vector{Int}}()
+    inv_dx = 1.0/dx
     for i = 1:num_points
-        key = (floor(Int, points[1, i]/dx), floor(Int, points[2, i]/dx))
+        key = (floor(Int, points[1, i]*inv_dx), floor(Int, points[2, i]*inv_dx))
         if haskey(pixels, key)
             push!(pixels[key], i)
         else

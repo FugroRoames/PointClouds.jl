@@ -1,15 +1,15 @@
 """
-    rasterize_points(cloud::PointCloud, dx::AbstractFloat)
-    rasterize_points(cloud::Matrix{<:AbstractFloat}, dx::AbstractFloat)
+    rasterize_points(cloud::PointCloud, dx<:AbstractFloat)
+    rasterize_points(cloud::Matrix{<:AbstractFloat}, dx<:AbstractFloat)
 
 Rasterize points in 2D by a cell size `dx`.
 Returns a dictionary containing the indices points that are in a cell.
 """
-function rasterize_points(cloud::PointCloud, dx::AbstractFloat)
+function rasterize_points{T <: AbstractFloat}(cloud::PointCloud, dx::T)
     return rasterize_points(destructure(cloud.positions), dx)
 end
 
-function rasterize_points{T <: AbstractFloat}(points::Matrix{T}, dx::AbstractFloat)
+function rasterize_points{T <: AbstractFloat}(points::Matrix{T}, dx::T)
     num_dims, num_points = size(points)
     points = points .- minimum(points, 2)
     nx = ceil(Int, maximum(points[1, :])/dx)

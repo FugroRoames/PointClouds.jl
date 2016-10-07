@@ -10,6 +10,7 @@ import NearestNeighbors:
 
 using NearestNeighbors
 using FixedSizeArrays
+using StaticArrays
 
 export PointCloud,
     # Point cloud data access

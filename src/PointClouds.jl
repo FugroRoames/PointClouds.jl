@@ -1,3 +1,5 @@
+__precompile__()
+
 module PointClouds
 
 import Base:
@@ -9,7 +11,6 @@ import NearestNeighbors:
     knn, inrange
 
 using NearestNeighbors
-using FixedSizeArrays
 using StaticArrays
 
 export PointCloud,
@@ -22,13 +23,7 @@ export PointCloud,
     # Data handling
     split_cloud,
     # Adding columns
-    add_normals!,
-    # Rasterizer
-    rasterize_points,
-    # Voxel spatial grid
-    SparseVoxelGrid,
-    in_cuboid,
-    voxel_center
+    add_normals!
 
 include("cloud.jl")
 

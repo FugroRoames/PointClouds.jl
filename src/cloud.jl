@@ -44,15 +44,14 @@ nearby = cloud[inrange(cloud, [1,1,1], 5.0)]
 type PointCloud{Dim,T,SIndex}
     positions::Vector{SVector{Dim,T}}
     spatial_index::SIndex
-    attributes::Dict{Symbol,Vector}
+    attributes::Dict{Symbol,Vector{Any}}
 end
-
-# FIXME should they have Nullable attributes? if attribute i smissing or someting?
 
 # Create a `PointCloud` for FixedSizeArrays Vec using a KDTree for spatial
 # indexing based on `positions`.
+# TODO should be able to change the spatial index
 function PointCloud{T <: AbstractFloat}(positions::Vector{SVector{3, T}})
-    PointCloud(positions, KDTree(positions), Dict{Symbol,Vector}())
+    PointCloud(positions, KDTree(positions), Dict{Symbol,Vector{Any}}())
 end
 
 # Create a `PointCloud` from an 3xN array of points, using a KDTree for spatial
@@ -116,17 +115,17 @@ endof(cloud::PointCloud) = length(cloud.positions)
 function getindex{Dim,T,SIndex}(cloud::PointCloud{Dim,T,SIndex}, row_inds::AbstractVector)
     pos = positions(cloud)[row_inds]
     tree = KDTree(pos)  # TODO NEED TO GET SPATIAL INDEX FROM TYPE
-    attrs = Dict{Symbol,Vector}()
+    attrs = Dict{Symbol,Vector{Any}}()
     for (k,v) in cloud.attributes
         attrs[k] = v[row_inds]
     end
-    PointCloud{Dim,T,SIndex}(pos, KDTree(pos), attrs)
+    PointCloud{Dim,T,SIndex}(pos, tree, attrs)
 end
 
 # Concatenate point clouds
 function vcat{Dim,T,SIndex}(cloud1::PointCloud{Dim,T,SIndex}, clouds::PointCloud{Dim,T,SIndex}...)
-    pos = positions(cloud1)
     attrs = deepcopy(cloud1.attributes)
+    pos = positions(cloud1)
     ks = Set(keys(attrs))
     for cloud in clouds
         pos = [pos; positions(cloud)]

@@ -140,72 +140,68 @@ function vcat{Dim,T,SIndex}(cloud1::PointCloud{Dim,T,SIndex}, clouds::PointCloud
     PointCloud{Dim,T,SIndex}(pos, spatial_index, attrs)
 end
 
-# """
-# Group points into `M = unique(scanid)` point clouds, each containing points
-# with the same scan id.  Returns a dictionary mapping the unique scanid to each
-# cloud.
-# """
-# function split_cloud(allpoints, scanid; min_points::Int=10000)
-#     unique_scans = unique(scanid)
-#     scans = Dict{eltype(unique_scans), typeof(allpoints)}()
-#     for id in unique_scans
-#         scans[id] = allpoints[id .== scanid]
-#     end
-#     scans
-# end
+"""
+Group points into `M = unique(scanid)` point clouds, each containing points
+with the same scan id.  Returns a dictionary mapping the unique scanid to each
+cloud.
+"""
+function split_cloud(allpoints, scanid; min_points::Int=10000)
+    unique_scans = unique(scanid)
+    scans = Dict{eltype(unique_scans), typeof(allpoints)}()
+    for id in unique_scans
+        scans[id] = allpoints[id .== scanid]
+    end
+    scans
+end
 
 
-# #--------------------------
-# # Spatial index lookup (knn and ball queries)
-# knn(cloud::PointCloud, points, k) = knn(cloud.spatial_index, points, k)
-# knn{T<:Vec}(cloud::PointCloud, points::AbstractVector{T}, k) = knn(cloud, destructure(points), k)
+#--------------------------
+# Spatial index lookup (knn and ball queries)
+knn(cloud::PointCloud, points, k) = knn(cloud.spatial_index, points, k)
+inrange(cloud::PointCloud, points, radius) = inrange(cloud.spatial_index, points, radius)
 
-knn(cloud::PointCloud, points, radius) = knn(cloud.spatial_index, points, radius)
-knn(cloud::PointCloud, points::Vector{SVector}, radius) = knn(cloud.spatial_index, points, radius)
-inrange(cloud::PointCloud, points::AbstractVector, radius) = inrange(cloud.spatial_index, points, radius)
-inrange(cloud::PointCloud, points::Vector{SVector}, radius) = inrange(cloud.spatial_index, points, radius)
+#------------------------
+# Utilities for adding columns
 
-# #------------------------
-# # Utilities for adding columns
-#
-# """
-#     pca_normals!(normals, query_points, cloud; neighbours::Int=10)
-#
-# Compute normals of a point cloud via PCA
-#
-# For each point in the 3xN array `query_points`, compute an approximate surface
-# normal using PCA on the local neighbourhood, using the closest `neighbours`
-# points.  `cloud` should support spatial lookup via the `knn()` function.
-# Normals are returned in the 3xN array `normals`.
-#
-# TODO: Need a generalized version of this for the PCA covariance computation.
-# """
-# function pca_normals!(normals, query_points, cloud; neighbours::Int=10)
-#     for i = 1:size(query_points,2)
-#         p = query_points[:,i]
-#         inds,_ = knn(cloud, p, neighbours)
-#         if isempty(inds)
-#             continue
-#         end
-#         d = (query_points[:,inds] .- p)
-#         # Select evec of smallest eval
-#         evals, evecs = eig(Symmetric(d*d'), 1:1)
-#         #print("$evals")
-#         normals[:,i] = evecs
-#     end
-#     return normals
-# end
-#
-# """
-# Add normals to point cloud in Float32 precision, compute using PCA.
-#
-# See pca_normals!() for details.
-# """
-# function add_normals!{Dim}(cloud::PointCloud{Dim}; kwargs...)
-#     # Use Float32 for estimated normals - heaps of precision at half the memory
-#     query_points = positions(cloud)
-#     normals = similar(query_points, Vec{Dim,Float32})
-#     pca_normals!(destructure(normals), destructure(query_points), cloud; kwargs...)
-#     cloud[:normals] = normals
-#     cloud
-# end
+"""
+    pca_normals!(normals, query_points, cloud; neighbours::Int=10)
+
+Compute normals of a point cloud via PCA
+
+For each point in the 3xN array `query_points`, compute an approximate surface
+normal using PCA on the local neighbourhood, using the closest `neighbours`
+points.  `cloud` should support spatial lookup via the `knn()` function.
+Normals are returned in the 3xN array `normals`.
+
+TODO: Need a generalized version of this for the PCA covariance computation.
+"""
+function pca_normals!{D, T}(normals, query_points::Vector{SVector{D,T}}, cloud; neighbours::Int=10)
+    cov_tmp = MMatrix{3, 3, T}()
+    for i = 1:length(query_points)
+        @inbounds (inds, _) = knn(cloud, query_points[i], neighbours)
+        isempty(inds) && continue
+        fill!(cov_tmp, zero(T))
+        for j = 1:length(inds)
+            @inbounds p = query_points[inds[j]] - query_points[i]
+            cov_tmp .+= p * p'
+        end
+        # Select evec of smallest eval
+        evals, evecs = eig(Symmetric(cov_tmp), 1:1)
+        normals[i] = evecs
+    end
+    return normals
+end
+
+"""
+Add normals to point cloud in Float32 precision, compute using PCA.
+
+See pca_normals!() for details.
+"""
+function add_normals!{Dim}(cloud::PointCloud{Dim}; kwargs...)
+    # Use Float32 for estimated normals - heaps of precision at half the memory
+    query_points = positions(cloud)
+    normals = similar(query_points, SVector{Dim,Float32})
+    pca_normals!(normals, query_points, cloud; kwargs...)
+    cloud[:normals] = normals
+    return cloud
+end

@@ -31,6 +31,5 @@ export PointCloud,
     voxel_center
 
 include("cloud.jl")
-include("spatial_grid.jl")
 
 end # module

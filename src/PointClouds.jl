@@ -2,6 +2,21 @@ __precompile__()
 
 module PointClouds
 
+using NearestNeighbors
+using StaticArrays
+using TypedTables
+
+import Base:
+    @pure, @propagate_inbounds, linearindexing, LinearFast
+
+import NearestNeighbors:
+    knn, inrange
+
+export PointCloud
+
+
+
+#=
 import Base:
     show, keys, haskey,
     getindex, setindex!,
@@ -24,6 +39,9 @@ export PointCloud,
     split_cloud,
     # Adding columns
     add_normals!
+
+=#
+
 
 include("cloud.jl")
 

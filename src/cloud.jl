@@ -1,3 +1,82 @@
+immutable PointVector{Pts, Idx, T} <: AbstractVector{T}
+    points::Pts
+    index::Idx
+
+    function PointVector(p, i)
+        check_eltype(Pts, T)
+        new(p, i)
+    end
+end
+
+@pure function check_eltype(Pts, T)
+    if T != eltype(Pts)
+        error("Element type is incorrect")
+    end
+end
+
+
+# A full set of 1- and 2-input constructors
+@inline (::Type{PointVector}){Pts}(points::Pts) = PointVector{Pts}(points)
+@inline (::Type{PointVector}){Pts,Idx}(points::Pts, index::Idx) = PointVector{Pts,Idx}(points, index)
+
+@inline (::Type{PointVector{Pts}}){Pts}(points::Pts) = PointVector{Pts}(points, KDTree(points))
+@inline (::Type{PointVector{Pts}}){Pts,Idx}(points::Pts, index::Idx) = PointVector{Pts,Idx}(points, index)
+
+@inline (::Type{PointVector{Pts,Idx}}){Pts,Idx}(points::Pts) = PointVector{Pts,Idx,eltype(Pts)}(points, Idx(points))
+@inline (::Type{PointVector{Pts,Idx}}){Pts,Idx}(points::Pts, index::Idx) = PointVector{Pts,Idx,eltype(Pts)}(points, index)
+
+
+# AbstractVector interface
+linearindexing(pv::PointVector) = linearindexing(pv.points)
+linearindexing{Pts}(::Type{PointVector{Pts}}) = linearindexing(Pts)
+linearindexing{Pts,Idx}(::Type{PointVector{Pts,Idx}}) = linearindexing(Pts)
+linearindexing{Pts,Idx,T}(::Type{PointVector{Pts,Idx,T}}) = linearindexing(Pts)
+
+@inline size(pv::PointVector) = size(pv.points)
+@inline length(pv::PointVector) = length(pv.points)
+@inline endof(pv::PointVector) = endof(pv.points)
+@propagate_inbounds getindex(pv::PointVector, i) = pv.points[i]
+# (immutable for now, since index would need to update)
+# @propagate_inbounds setindex!(pv::PointVector, val, i) = (pv.points[i] = val)
+
+
+# Spatial queries, beyond getindex
+
+
+
+#=
+"""
+
+"""
+immutable PointCloud{Name,StorageType,IndexType} <: AbstractColumn
+    data::StorageType
+    index::IndexType
+end
+
+@inline (::Type{PointCloud})(pos, idx) = PointCloud{:Position}(pos, idx)
+@inline (::Type{PointCloud})(pos) = PointCloud{:Position}(pos)
+
+@inline (::Type{PointCloud{Name}}){Name,ST,IT}(pos::ST, idx::IT) = PointCloud{Name,ST,IT}(pos, idx)
+@inline (::Type{PointCloud{Name}}){Name,ST}(pos::ST) = PointCloud{Name,ST}(pos)
+
+@inline (::Type{PointCloud{Name,ST,IT}}){Name,ST,IT}(pos::ST, idx::IT) = PointCloud{Name,ST,IT}(pos, idx)
+@inline function (::Type{PointCloud{Name,ST,IT}}){Name,ST}(pos::ST)
+    idx = KDTree(idx)
+    PointCloud{Name,ST}(pos, idx)
+end
+
+@inline TypedTables.get(pc::PointColumn) = pc.data
+@pure name{Name}(::Type{PointColumn{Name}}) = Name
+@pure name{Name,ST}(::Type{PointColumn{Name,ST}}) = Name
+@pure name{Name,IT}(::Type{PointColumn{Name,ST,IT}}) = Name
+
+@inline column_type{PC<:PointCloud}(::Type{PC}) = PointCloud{name(PC)}
+@pure column_type{PC<:PointCloud}(::Type{PC}, newname::Symbol) = PointCloud{newname}
+
+=#
+
+#=
+
 """
 A `PointCloud` is a container for points sharing a common set of per-point
 attributes.  Points within the cloud can be accessed by index, and vectors of
@@ -204,3 +283,4 @@ function add_normals!{Dim}(cloud::PointCloud{Dim}; kwargs...)
     cloud[:normals] = normals
     return cloud
 end
+=#

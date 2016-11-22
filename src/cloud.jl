@@ -186,19 +186,21 @@ Normals are returned in the 3xN array `normals`.
 
 TODO: Need a generalized version of this for the PCA covariance computation.
 """
-function pca_normals!{D, T}(normals, query_points::Vector{SVector{D,T}}, cloud; neighbours::Int=10)
-    cov_tmp = MMatrix{3, 3, T}()
+function pca_normals!{V<:AbstractVector}(normals::Vector{V}, query_points, cloud; neighbours::Int=10)
+    position = positions(cloud)
     for i = 1:length(query_points)
         @inbounds (inds, _) = knn(cloud, query_points[i], neighbours)
         isempty(inds) && continue
-        fill!(cov_tmp, zero(T))
+        cov_tmp = zeros(SMatrix{3,3,eltype(V)})
         for j = 1:length(inds)
-            @inbounds p = query_points[inds[j]] - query_points[i]
-            cov_tmp .+= p * p'
+            @inbounds p = position[inds[j]] - query_points[i]
+            cov_tmp += p * p'
         end
+        # FIXME: Avoid converting to Matrix when eig(SMatrix) is solid
+        # See https://github.com/JuliaArrays/StaticArrays.jl/issues/80
+        evals, evecs = eig(Symmetric(Matrix(cov_tmp)))
         # Select evec of smallest eval
-        evals, evecs = eig(Symmetric(cov_tmp), 1:1)
-        normals[i] = evecs
+        normals[i] = evecs[:,1]
     end
     return normals
 end

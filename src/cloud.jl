@@ -44,14 +44,14 @@ nearby = cloud[inrange(cloud, [1,1,1], 5.0)]
 type PointCloud{Dim,T,SIndex}
     positions::Vector{SVector{Dim,T}}
     spatial_index::SIndex
-    attributes::Dict{Symbol,Vector{Any}}
+    attributes::Dict{Symbol,Vector}
 end
 
 # Create a `PointCloud` for FixedSizeArrays Vec using a KDTree for spatial
 # indexing based on `positions`.
 # TODO should be able to change the spatial index
-function PointCloud{T <: AbstractFloat}(positions::Vector{SVector{3, T}})
-    PointCloud(positions, KDTree(positions), Dict{Symbol,Vector{Any}}())
+function PointCloud{Dim, T <: AbstractFloat}(positions::Vector{SVector{Dim, T}})
+    PointCloud(positions, KDTree(positions), Dict{Symbol,Vector}())
 end
 
 # Create a `PointCloud` from an 3xN array of points, using a KDTree for spatial
@@ -121,7 +121,7 @@ endof(cloud::PointCloud) = length(cloud.positions)
 function getindex{Dim,T,SIndex}(cloud::PointCloud{Dim,T,SIndex}, row_inds::AbstractVector)
     pos = positions(cloud)[row_inds]
     tree = KDTree(pos)  # TODO NEED TO GET SPATIAL INDEX FROM TYPE
-    attrs = Dict{Symbol,Vector{Any}}()
+    attrs = Dict{Symbol,Vector}()
     for (k,v) in cloud.attributes
         attrs[k] = v[row_inds]
     end
@@ -130,7 +130,13 @@ end
 
 # Concatenate point clouds
 function vcat{Dim,T,SIndex}(cloud1::PointCloud{Dim,T,SIndex}, clouds::PointCloud{Dim,T,SIndex}...)
-    attrs = deepcopy(cloud1.attributes)
+    # Workaround for a weird compiler bug, which causes the deepcopy type assert to fail.
+    # See https://github.com/JuliaLang/julia/issues/19041
+    #attrs = deepcopy(cloud1.attributes)
+    attrs = Dict{Symbol,Vector}()
+    for (k,v) in cloud1.attributes
+        attrs[k] = deepcopy(v)
+    end
     pos = positions(cloud1)
     ks = Set(keys(attrs))
     for cloud in clouds

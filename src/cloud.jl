@@ -63,9 +63,15 @@ PointCloud{T <: AbstractFloat}(points::Matrix{T}) = PointCloud(convert_positions
 
 Convert a standard julia array of points into a FixedSizeArray
 """
-function convert_positions{T <: AbstractFloat}(points::Matrix{T})
+function convert_positions{T}(points::Matrix{T})
     ndims = size(points, 1)
-    return [SVector{ndims,T}(points[:, i]) for i = 1:size(points, 2)]
+    npoints = size(points, 2)
+    if isbits(T)
+        data = reinterpret(SVector{ndims, T}, points, (npoints, ))
+    else
+        data = SVector{ndims, T}[SVector{ndims, T}(points[:, i]) for i in 1:npoints]
+    end
+    return data
 end
 
 function show(io::IO, cloud::PointCloud)

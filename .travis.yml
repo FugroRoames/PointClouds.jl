@@ -4,13 +4,9 @@ os:
   - linux
   - osx
 julia:
-  - release
+  - 0.5
   - nightly
 notifications:
   email: false
-# uncomment the following lines to override the default test script
-#script:
-#  - if [[ -a .git/shallow ]]; then git fetch --unshallow; fi
-#  - julia -e 'Pkg.clone(pwd()); Pkg.build("PointClouds"); Pkg.test("PointClouds"; coverage=true)'
 after_success:
 - julia -e 'cd(Pkg.dir("PointClouds")); Pkg.add("Coverage"); using Coverage; Coveralls.submit(process_folder())'
